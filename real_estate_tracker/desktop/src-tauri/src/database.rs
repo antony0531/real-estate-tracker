@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use anyhow::{Result, anyhow};
 use tokio::fs;
-use tracing::{info, error};
+use tracing::info;
 
 /// Get the application data directory
 pub fn get_app_data_dir() -> Result<PathBuf> {

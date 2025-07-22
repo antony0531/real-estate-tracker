@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 use tauri::command;
 use anyhow::Result;
-use tracing::{info, error};
+use tracing::info;
 
-use crate::python::{execute_python_command, parse_cli_output};
+use crate::python::execute_python_command;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppInfo {
@@ -84,7 +84,8 @@ pub async fn get_projects() -> Result<String, String> {
 pub async fn get_project(project_id: u32) -> Result<String, String> {
     info!("Fetching project {}", project_id);
     
-    let output = execute_python_command(vec!["project", "show", &project_id.to_string()])
+    let project_id_str = project_id.to_string();
+    let output = execute_python_command(vec!["project", "show", &project_id_str])
         .await
         .map_err(|e| format!("Failed to get project {}: {}", project_id, e))?;
         
@@ -96,45 +97,58 @@ pub async fn get_project(project_id: u32) -> Result<String, String> {
 pub async fn create_project(data: ProjectData) -> Result<String, String> {
     info!("Creating project: {}", data.name);
     
+    let budget_str = data.budget.to_string();
     let mut args = vec![
         "project", "create",
         &data.name,
-        &data.budget.to_string(),
+        &budget_str,
         &data.property_type,
         &data.property_class
     ];
-    
-    // Add optional arguments
-    let mut temp_strings = Vec::new(); // To keep strings alive
-    
-    if let Some(ref desc) = data.description {
+
+    // Collect all optional string values first
+    let mut temp_strings = Vec::new();
+    let mut floor_idx = None;
+    let mut sqft_idx = None;
+
+    if let Some(description) = &data.description {
         args.push("--description");
-        args.push(desc);
+        args.push(description);
     }
-    
+
     if let Some(floors) = data.floors {
         let floors_str = floors.to_string();
         temp_strings.push(floors_str);
-        args.push("--floors");
-        args.push(temp_strings.last().unwrap());
+        floor_idx = Some(temp_strings.len() - 1);
     }
-    
+
     if let Some(sqft) = data.sqft {
         let sqft_str = sqft.to_string();
         temp_strings.push(sqft_str);
-        args.push("--sqft");
-        args.push(temp_strings.last().unwrap());
+        sqft_idx = Some(temp_strings.len() - 1);
     }
-    
-    if let Some(ref address) = data.address {
+
+    // Add the floor arguments if present
+    if let Some(idx) = floor_idx {
+        args.push("--floors");
+        args.push(&temp_strings[idx]);
+    }
+
+    // Add the sqft arguments if present
+    if let Some(idx) = sqft_idx {
+        args.push("--sqft");
+        args.push(&temp_strings[idx]);
+    }
+
+    if let Some(address) = &data.address {
         args.push("--address");
         args.push(address);
     }
-    
+
     let output = execute_python_command(args)
         .await
         .map_err(|e| format!("Failed to create project: {}", e))?;
-        
+
     Ok(output)
 }
 
@@ -143,58 +157,90 @@ pub async fn create_project(data: ProjectData) -> Result<String, String> {
 pub async fn update_project(project_id: u32, data: ProjectData) -> Result<String, String> {
     info!("Updating project {}", project_id);
     
-    let mut args = vec!["project", "update", &project_id.to_string()];
-    let mut temp_strings = Vec::new();
-    
-    // Add fields that should be updated
+    let project_id_str = project_id.to_string();
+    let mut args = vec!["project", "update", &project_id_str];
+
     args.push("--name");
     args.push(&data.name);
-    
+
     let budget_str = data.budget.to_string();
-    temp_strings.push(budget_str);
     args.push("--budget");
-    args.push(temp_strings.last().unwrap());
-    
-    if let Some(ref desc) = data.description {
+    args.push(&budget_str);
+
+    args.push("--property-type");
+    args.push(&data.property_type);
+
+    args.push("--property-class");
+    args.push(&data.property_class);
+
+    // Collect optional string values first
+    let mut temp_strings = Vec::new();
+    let mut floor_idx = None;
+    let mut sqft_idx = None;
+
+    if let Some(description) = &data.description {
         args.push("--description");
-        args.push(desc);
+        args.push(description);
     }
-    
-    if let Some(ref address) = data.address {
+
+    if let Some(floors) = data.floors {
+        let floors_str = floors.to_string();
+        temp_strings.push(floors_str);
+        floor_idx = Some(temp_strings.len() - 1);
+    }
+
+    if let Some(sqft) = data.sqft {
+        let sqft_str = sqft.to_string();
+        temp_strings.push(sqft_str);
+        sqft_idx = Some(temp_strings.len() - 1);
+    }
+
+    // Add the floor arguments if present
+    if let Some(idx) = floor_idx {
+        args.push("--floors");
+        args.push(&temp_strings[idx]);
+    }
+
+    // Add the sqft arguments if present
+    if let Some(idx) = sqft_idx {
+        args.push("--sqft");
+        args.push(&temp_strings[idx]);
+    }
+
+    if let Some(address) = &data.address {
         args.push("--address");
         args.push(address);
     }
-    
+
     let output = execute_python_command(args)
         .await
         .map_err(|e| format!("Failed to update project {}: {}", project_id, e))?;
-        
+
     Ok(output)
 }
 
 /// Delete a project
 #[command]
-pub async fn delete_project(project_id: u32, force: bool) -> Result<String, String> {
-    info!("Deleting project {} (force: {})", project_id, force);
+pub async fn delete_project(project_id: u32) -> Result<String, String> {
+    info!("Deleting project {}", project_id);
     
-    let mut args = vec!["project", "delete", &project_id.to_string()];
-    if force {
-        args.push("--force");
-    }
-    
+    let project_id_str = project_id.to_string();
+    let args = vec!["project", "delete", &project_id_str, "--force"];
+
     let output = execute_python_command(args)
         .await
         .map_err(|e| format!("Failed to delete project {}: {}", project_id, e))?;
-        
+
     Ok(output)
 }
 
-/// Get rooms for a project
+/// Get all rooms for a project
 #[command]
 pub async fn get_rooms(project_id: u32) -> Result<String, String> {
     info!("Fetching rooms for project {}", project_id);
     
-    let output = execute_python_command(vec!["room", "list", &project_id.to_string()])
+    let project_id_str = project_id.to_string();
+    let output = execute_python_command(vec!["room", "list", "--project", &project_id_str])
         .await
         .map_err(|e| format!("Failed to get rooms for project {}: {}", project_id, e))?;
         
@@ -206,189 +252,209 @@ pub async fn get_rooms(project_id: u32) -> Result<String, String> {
 pub async fn add_room(project_id: u32, data: RoomData) -> Result<String, String> {
     info!("Adding room {} to project {}", data.name, project_id);
     
+    let project_id_str = project_id.to_string();
+    let floor_str = data.floor.to_string();
+    
     let mut args = vec![
         "room", "add",
-        &project_id.to_string(),
+        &project_id_str,
         &data.name,
-        &data.floor.to_string()
+        &floor_str
     ];
-    
+
+    // Collect optional string values first
     let mut temp_strings = Vec::new();
-    
+    let mut length_idx = None;
+    let mut width_idx = None;
+    let mut height_idx = None;
+    let mut condition_idx = None;
+
     if let Some(length) = data.length {
         let length_str = length.to_string();
         temp_strings.push(length_str);
-        args.push("--length");
-        args.push(temp_strings.last().unwrap());
+        length_idx = Some(temp_strings.len() - 1);
     }
-    
+
     if let Some(width) = data.width {
         let width_str = width.to_string();
         temp_strings.push(width_str);
-        args.push("--width");
-        args.push(temp_strings.last().unwrap());
+        width_idx = Some(temp_strings.len() - 1);
     }
-    
+
     if let Some(height) = data.height {
         let height_str = height.to_string();
         temp_strings.push(height_str);
-        args.push("--height");
-        args.push(temp_strings.last().unwrap());
+        height_idx = Some(temp_strings.len() - 1);
     }
-    
+
     if let Some(condition) = data.condition {
         let condition_str = condition.to_string();
         temp_strings.push(condition_str);
-        args.push("--condition");
-        args.push(temp_strings.last().unwrap());
+        condition_idx = Some(temp_strings.len() - 1);
     }
-    
-    if let Some(ref notes) = data.notes {
+
+    // Add all the optional arguments
+    if let Some(idx) = length_idx {
+        args.push("--length");
+        args.push(&temp_strings[idx]);
+    }
+
+    if let Some(idx) = width_idx {
+        args.push("--width");
+        args.push(&temp_strings[idx]);
+    }
+
+    if let Some(idx) = height_idx {
+        args.push("--height");
+        args.push(&temp_strings[idx]);
+    }
+
+    if let Some(idx) = condition_idx {
+        args.push("--condition");
+        args.push(&temp_strings[idx]);
+    }
+
+    if let Some(notes) = &data.notes {
         args.push("--notes");
         args.push(notes);
     }
-    
+
     let output = execute_python_command(args)
         .await
         .map_err(|e| format!("Failed to add room: {}", e))?;
-        
+
     Ok(output)
 }
 
 /// Delete a room
 #[command]
-pub async fn delete_room(project_id: u32, room_name: String, force: bool) -> Result<String, String> {
-    info!("Deleting room {} from project {} (force: {})", room_name, project_id, force);
+pub async fn delete_room(project_id: u32, room_name: String) -> Result<String, String> {
+    info!("Deleting room {} from project {}", room_name, project_id);
     
-    let mut args = vec!["room", "delete", &project_id.to_string(), &room_name];
-    if force {
-        args.push("--force");
-    }
-    
+    let project_id_str = project_id.to_string();
+    let args = vec!["room", "delete", &project_id_str, &room_name, "--force"];
+
     let output = execute_python_command(args)
         .await
-        .map_err(|e| format!("Failed to delete room: {}", e))?;
-        
+        .map_err(|e| format!("Failed to delete room {}: {}", room_name, e))?;
+
     Ok(output)
 }
 
-/// Get expenses for a project
+/// Get all expenses for a project
 #[command]
-pub async fn get_expenses(project_id: u32, room_filter: Option<String>, category_filter: Option<String>) -> Result<String, String> {
+pub async fn get_expenses(project_id: u32) -> Result<String, String> {
     info!("Fetching expenses for project {}", project_id);
     
-    let mut args = vec!["expense", "list", &project_id.to_string()];
-    
-    if let Some(ref room) = room_filter {
-        args.push("--room");
-        args.push(room);
-    }
-    
-    if let Some(ref category) = category_filter {
-        args.push("--category");
-        args.push(category);
-    }
-    
+    let project_id_str = project_id.to_string();
+    let args = vec!["expense", "list", &project_id_str];
+
     let output = execute_python_command(args)
         .await
-        .map_err(|e| format!("Failed to get expenses: {}", e))?;
+        .map_err(|e| format!("Failed to get expenses for project {}: {}", project_id, e))?;
         
     Ok(output)
 }
 
-/// Add an expense
+/// Add an expense to a project
 #[command]
 pub async fn add_expense(project_id: u32, data: ExpenseData) -> Result<String, String> {
-    info!("Adding expense to project {} room {}", project_id, data.room_name);
+    info!("Adding expense to project {}", project_id);
+    
+    let project_id_str = project_id.to_string();
+    let cost_str = data.cost.to_string();
     
     let mut args = vec![
         "expense", "add",
-        &project_id.to_string(),
+        &project_id_str,
         &data.room_name,
         &data.category,
-        &data.cost.to_string()
+        &cost_str
     ];
-    
+
+    // Collect optional string values first
     let mut temp_strings = Vec::new();
-    
+    let mut hours_idx = None;
+    let mut condition_idx = None;
+
     if let Some(hours) = data.hours {
         let hours_str = hours.to_string();
         temp_strings.push(hours_str);
-        args.push("--hours");
-        args.push(temp_strings.last().unwrap());
+        hours_idx = Some(temp_strings.len() - 1);
     }
-    
+
     if let Some(condition) = data.condition {
         let condition_str = condition.to_string();
         temp_strings.push(condition_str);
-        args.push("--condition");
-        args.push(temp_strings.last().unwrap());
+        condition_idx = Some(temp_strings.len() - 1);
     }
-    
-    if let Some(ref notes) = data.notes {
+
+    // Add optional arguments
+    if let Some(idx) = hours_idx {
+        args.push("--hours");
+        args.push(&temp_strings[idx]);
+    }
+
+    if let Some(idx) = condition_idx {
+        args.push("--condition");
+        args.push(&temp_strings[idx]);
+    }
+
+    if let Some(notes) = &data.notes {
         args.push("--notes");
         args.push(notes);
     }
-    
+
     let output = execute_python_command(args)
         .await
         .map_err(|e| format!("Failed to add expense: {}", e))?;
-        
+
     Ok(output)
 }
 
 /// Delete an expense
 #[command]
-pub async fn delete_expense(expense_id: u32, force: bool) -> Result<String, String> {
-    info!("Deleting expense {} (force: {})", expense_id, force);
+pub async fn delete_expense(expense_id: u32) -> Result<String, String> {
+    info!("Deleting expense {}", expense_id);
     
-    let mut args = vec!["expense", "delete", &expense_id.to_string()];
-    if force {
-        args.push("--force");
-    }
-    
+    let expense_id_str = expense_id.to_string();
+    let args = vec!["expense", "delete", &expense_id_str, "--force"];
+
     let output = execute_python_command(args)
         .await
-        .map_err(|e| format!("Failed to delete expense: {}", e))?;
-        
+        .map_err(|e| format!("Failed to delete expense {}: {}", expense_id, e))?;
+
     Ok(output)
 }
 
 /// Get budget status for a project
 #[command]
 pub async fn get_budget_status(project_id: u32) -> Result<String, String> {
-    info!("Getting budget status for project {}", project_id);
+    info!("Fetching budget status for project {}", project_id);
     
-    let output = execute_python_command(vec!["budget", "status", &project_id.to_string()])
+    let project_id_str = project_id.to_string();
+    let output = execute_python_command(vec!["budget", "status", &project_id_str])
         .await
-        .map_err(|e| format!("Failed to get budget status: {}", e))?;
+        .map_err(|e| format!("Failed to get budget status for project {}: {}", project_id, e))?;
         
     Ok(output)
 }
 
 /// Export project data
 #[command]
-pub async fn export_project(project_id: u32, output_file: Option<String>, no_rooms: bool, no_expenses: bool) -> Result<String, String> {
-    info!("Exporting project {} to file", project_id);
+pub async fn export_project(project_id: u32, format: String) -> Result<String, String> {
+    info!("Exporting project {} in {} format", project_id, format);
     
-    let mut args = vec!["export", "csv", &project_id.to_string()];
-    
-    if let Some(ref file) = output_file {
-        args.push("--output");
-        args.push(file);
+    let project_id_str = project_id.to_string();
+    let args = vec!["export", "csv", &project_id_str];
+
+    if format != "csv" {
+        return Err("Only CSV export is currently supported".to_string());
     }
-    
-    if no_rooms {
-        args.push("--no-rooms");
-    }
-    
-    if no_expenses {
-        args.push("--no-expenses");
-    }
-    
+
     let output = execute_python_command(args)
         .await
-        .map_err(|e| format!("Failed to export project: {}", e))?;
-        
+        .map_err(|e| format!("Failed to export project {}: {}", project_id, e))?;
+
     Ok(output)
 } 

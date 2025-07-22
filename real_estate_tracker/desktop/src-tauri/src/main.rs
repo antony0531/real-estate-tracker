@@ -82,17 +82,19 @@ fn main() {
             python::check_python_installation
         ])
         .setup(|app| {
-            // Initialize app data directory
+            // Initialize app data directory using Tauri's runtime
             let app_handle = app.handle();
-            tokio::spawn(async move {
+            let app_handle_clone = app_handle.clone();
+            
+            // Use Tauri's async runtime instead of tokio::spawn
+            tauri::async_runtime::spawn(async move {
                 if let Err(e) = database::initialize_app_data().await {
                     error!("Failed to initialize app data: {}", e);
                 }
             });
 
             // Check Python installation on startup
-            let app_handle_clone = app_handle.clone();
-            tokio::spawn(async move {
+            tauri::async_runtime::spawn(async move {
                 match python::check_python_installation().await {
                     Ok(info) => {
                         info!("Python installation found: {:?}", info);

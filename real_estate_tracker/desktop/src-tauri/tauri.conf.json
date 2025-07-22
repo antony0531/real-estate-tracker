@@ -107,7 +107,7 @@
         "minWidth": 1000,
         "minHeight": 700,
         "center": true,
-        "theme": "Auto"
+        "theme": "Light"
       }
     ],
     "systemTray": {

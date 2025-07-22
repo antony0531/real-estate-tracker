@@ -14,6 +14,32 @@ pub struct PythonInfo {
 /// Find Python executable path
 #[tauri::command]
 pub async fn get_python_path() -> Result<String, String> {
+    // First try to find the virtual environment Python
+    let current_dir = std::env::current_dir()
+        .map_err(|e| format!("Failed to get current directory: {}", e))?;
+    let backend_dir = current_dir.join("../backend");
+    
+    // Try virtual environment Python first (Windows)
+    let venv_python = backend_dir.join("venv/Scripts/python.exe");
+    if venv_python.exists() {
+        if let Ok(output) = Command::new(&venv_python).arg("--version").output() {
+            if output.status.success() {
+                return Ok(venv_python.to_string_lossy().to_string());
+            }
+        }
+    }
+    
+    // Try virtual environment Python (Unix-like)
+    let venv_python_unix = backend_dir.join("venv/bin/python");
+    if venv_python_unix.exists() {
+        if let Ok(output) = Command::new(&venv_python_unix).arg("--version").output() {
+            if output.status.success() {
+                return Ok(venv_python_unix.to_string_lossy().to_string());
+            }
+        }
+    }
+    
+    // Fallback to system Python
     let possible_names = vec!["python", "python3", "py"];
     
     for name in possible_names {
@@ -27,7 +53,7 @@ pub async fn get_python_path() -> Result<String, String> {
         }
     }
     
-    Err("Python not found in PATH".to_string())
+    Err("Python not found in PATH or virtual environment".to_string())
 }
 
 /// Check if Python installation is valid and has required dependencies
@@ -45,9 +71,14 @@ pub async fn check_python_installation() -> Result<PythonInfo, String> {
         .trim()
         .to_string();
 
-    // Check if backend is available
+    // Check if backend is available by testing our CLI module
+    let backend_path = std::env::current_dir()
+        .map_err(|e| format!("Failed to get current directory: {}", e))?
+        .join("../backend");
+        
     let backend_check = Command::new(&python_cmd)
-        .args(["-c", "import sys; sys.path.append('../backend/src'); import cli"])
+        .current_dir(&backend_path)
+        .args(["-m", "src.cli", "--help"])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()

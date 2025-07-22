@@ -1,0 +1,30 @@
+Real Estate Flip Tracker - Project Export
+Generated:,2025-07-22 09:03:51
+
+PROJECT INFORMATION
+Name,Updated Test Project
+Status,In Progress
+Budget,"$225,000.00"
+Type,single_family - sf_class_b
+Address,456 New Address
+Created,2025-07-22
+Square Feet,"2,500"
+
+FINANCIAL SUMMARY
+Total Budget,"$225,000.00"
+Total Spent,"$12,400.00"
+Remaining,"$212,600.00"
+Budget Used %,5.5%
+Material Costs,"$9,800.00"
+Labor Costs,"$2,600.00"
+Total Hours,35.0
+Cost per Sq Ft,$4.96
+
+ROOMS
+Name,Floor,Square Feet,Condition (1-5),Length,Width,Height,Notes
+Kitchen,1,180.0,3,12.0,15.0,8.0,Primary cooking area
+Living Room,1,360.0,3,20.0,18.0,8.0,Main gathering space
+Master Bedroom,2,224.0,3,14.0,16.0,8.0,Primary bedroom
+
+EXPENSES
+Date,Room,Category,Cost,Hours,Condition After,Notes

@@ -387,4 +387,61 @@ If you encounter issues not covered here:
 
 ---
 
+## **Error 9: Frontend Setup - Linter Errors During Initial Structure Creation**
+
+### **Problem**
+```typescript
+Cannot find module 'react' or its corresponding type declarations.
+Cannot find module '@/components/Layout' or its corresponding type declarations.
+JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists.
+This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found.
+```
+
+### **Root Cause**
+When setting up a new frontend project, TypeScript shows import errors for:
+1. **Dependencies not installed yet**: React, Vite, Tailwind packages missing
+2. **Component files not created**: Importing components that don't exist yet
+3. **Path aliases not working**: TypeScript can't resolve `@/` aliases until deps installed
+4. **JSX transform not available**: React types needed for JSX compilation
+
+### **Solution**
+**Expected Behavior**: These errors are completely normal during initial project setup.
+
+```bash
+# 1. Complete the project structure first (ignore linter errors)
+# 2. Install all dependencies to resolve module imports
+cd desktop
+npm install
+
+# 3. Verify setup
+npm run type-check  # Should now pass
+npm run lint        # Should now pass
+```
+
+### **Implementation Details**
+```typescript
+// Frontend Architecture Decisions Made:
+1. Vite + React + TypeScript: Modern, fast development
+2. Tailwind CSS: Utility-first styling with custom theme
+3. Zustand + React Query: Lightweight state management
+4. Path aliases: Clean imports (@components, @pages, etc.)
+5. Comprehensive type system: Project, Expense, Tauri types
+```
+
+### **Affected Files**
+- `vite.config.ts` - Build configuration with Tauri integration
+- `tailwind.config.ts` - Custom theme with Real Estate branding
+- `tsconfig.json` - TypeScript configuration with path aliases
+- `package.json` - 50+ dependencies for complete frontend stack
+- `src/types/` - Comprehensive TypeScript type definitions
+- `FRONTEND_SETUP.md` - Complete development documentation
+
+### **Prevention Strategies**
+1. **Document Expected Errors**: Always note that linter errors during setup are normal
+2. **Progressive Setup**: Structure → Dependencies → Components → Integration
+3. **Comprehensive Documentation**: Include troubleshooting for each stage
+4. **Clear Next Steps**: Document exact commands to resolve issues
+
+---
+
 **💡 Remember**: Every error we fixed made the system more robust. This troubleshooting guide ensures these lessons aren't lost and helps future development go smoothly! 

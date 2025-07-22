@@ -54,7 +54,11 @@ npm run tauri:dev
 ```
 
 **⚠️ IMPORTANT SETUP NOTES:**
-- **Linter Errors During Setup**: TypeScript will show import errors until all files are created and dependencies installed. This is normal.
+- **Linter Errors During Setup**: TypeScript will show import errors until all files are created and dependencies installed. This is normal and expected.
+  - ❌ `Cannot find module 'react'` - React not installed yet
+  - ❌ `Cannot find module '@/components/Layout'` - Component files not created yet  
+  - ❌ `JSX element implicitly has type 'any'` - React types not installed yet
+  - ✅ **These ALL resolve after running `npm install`**
 - **Rust Compilation**: First run takes 5-10 minutes as Rust dependencies compile
 - **Port Conflicts**: Vite uses port 1420 - ensure it's available
 - **Windows Users**: May need to install Visual Studio Build Tools for Rust compilation

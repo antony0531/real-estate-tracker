@@ -185,8 +185,10 @@ python -m src.cli project list
 |----------|---------|-----------|
 | **[README.md](README.md)** | Project overview and quick start | Everyone |
 | **[DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)** | Complete development documentation | New developers |
+| **[VERSION_CONTROL.md](VERSION_CONTROL.md)** | 🆕 Backup strategy and recovery procedures | All developers |
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | Technical architecture and design decisions | Engineers & architects |
 | **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Common issues and solutions | Developers & users |
+| **[FRONTEND_SETUP.md](FRONTEND_SETUP.md)** | 🆕 Frontend development guide | Frontend developers |
 | **[DESKTOP_PLAN.md](DESKTOP_PLAN.md)** | Desktop application roadmap | Frontend developers |
 | **[MOBILE_STRATEGY.md](MOBILE_STRATEGY.md)** | Mobile development strategy | Mobile developers |
 | **[TESTING.md](TESTING.md)** | Testing procedures and guidelines | QA & developers |

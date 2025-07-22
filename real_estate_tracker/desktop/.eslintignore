@@ -1,0 +1,22 @@
+# Build outputs
+dist/
+build/
+
+# Dependencies
+node_modules/
+
+# Tauri
+src-tauri/target/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Generated files
+*.d.ts
+
+# Config files that don't need linting
+.eslintrc.json
+postcss.config.js
+tailwind.config.ts
+vite.config.ts 

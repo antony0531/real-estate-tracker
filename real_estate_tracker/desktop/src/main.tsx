@@ -27,17 +27,8 @@ const queryClient = new QueryClient({
   },
 })
 
-// Enable React Query dev tools in development
-if (import.meta.env.DEV) {
-  import('@tanstack/react-query-devtools').then(({ ReactQueryDevtools }) => {
-    // Add dev tools to the DOM if in development
-    const devtools = React.createElement(ReactQueryDevtools, {
-      initialIsOpen: false,
-      position: 'bottom-right',
-    })
-    // Note: This is a simplified approach - in production, you'd want to conditionally render this
-  })
-}
+// React Query dev tools will be conditionally imported in the App component
+// This avoids TypeScript issues during build process
 
 // Main application root
 ReactDOM.createRoot(document.getElementById('root')!).render(

@@ -1,4 +1,5 @@
 import { PropertyType, PropertyClass, ProjectStatus } from './index'
+import type { Expense } from './expense'
 
 // Project data types
 export interface Project {

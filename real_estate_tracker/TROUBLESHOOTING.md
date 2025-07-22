@@ -444,4 +444,182 @@ npm run lint        # Should now pass
 
 ---
 
+## **Error 10: TypeScript Configuration Conflicts**
+
+### **Problem**
+```bash
+npm run type-check
+# ERROR: Output file 'vite.config.d.ts' has not been built from source file 'vite.config.ts'
+# The file is in the program because: Matched by include pattern 'vite.config.ts' in tsconfig.json
+
+npm run lint  
+# ERROR: ESLint couldn't find a configuration file
+```
+
+### **Root Cause**
+1. **tsconfig.json misconfiguration**: `vite.config.ts` included in main config instead of node config
+2. **Missing ESLint configuration**: `.eslintrc.json` file not created despite ESLint in package.json
+
+### **Solution**
+```bash
+# 1. Fix tsconfig.json - Remove vite.config.ts from main include array
+# 2. Create .eslintrc.json with proper React + TypeScript rules  
+# 3. Create .eslintignore to exclude build artifacts
+```
+
+### **Implementation Details**
+```json
+// tsconfig.json - Remove vite.config.ts from include
+{
+  "include": [
+    "src/**/*",
+    "src/**/*.ts", 
+    "src/**/*.tsx"
+    // Remove: "vite.config.ts" - handled by tsconfig.node.json
+  ]
+}
+
+// .eslintrc.json - Create with React + TypeScript rules
+{
+  "extends": [
+    "eslint:recommended",
+    "@typescript-eslint/recommended", 
+    "plugin:react-hooks/recommended"
+  ]
+}
+```
+
+### **Affected Files**
+- `tsconfig.json` - Fixed include patterns
+- `.eslintrc.json` - Created ESLint configuration
+- `.eslintignore` - Created to exclude build files
+
+### **Prevention Strategies**
+1. **Test Before Commit**: Always run `npm run type-check` and `npm run lint` 
+2. **Configuration Templates**: Use proven config templates for new projects
+3. **Incremental Setup**: Test each configuration file as it's added
+
+---
+
+## **Error 11: Missing Component Files and Import Dependencies**
+
+### **Problem**
+```typescript
+// After fixing configuration, component import errors appear:
+Cannot find module '@/pages/Dashboard' or its corresponding type declarations.
+Cannot find module '@/pages/ProjectView' or its corresponding type declarations.
+Cannot find module '@/pages/Settings' or its corresponding type declarations.
+Cannot find module '@/components/layout/Layout' or its corresponding type declarations.
+
+// ESLint configuration errors:
+ESLint couldn't find the config "@typescript-eslint/recommended" to extend from.
+```
+
+### **Root Cause**
+1. **Missing Component Files**: App.tsx imports components that don't exist yet
+2. **ESLint TypeScript Plugin Missing**: Configuration references plugin not in dependencies
+3. **Dev Dependencies Issue**: React Query dev tools import causes build errors
+
+### **Solution**
+```bash
+# 1. Create missing component files with proper stub implementations
+# 2. Fix ESLint configuration to use overrides for TypeScript files
+# 3. Remove problematic dev tools code that causes build issues
+```
+
+### **Implementation Details**
+Created functional component stubs:
+- `Dashboard.tsx` - Main dashboard with project overview cards
+- `ProjectView.tsx` - Individual project details page  
+- `Settings.tsx` - Application settings and preferences
+- `Layout.tsx` - Main navigation layout with sidebar
+
+Fixed ESLint config to use overrides pattern:
+```json
+{
+  "extends": ["eslint:recommended"],
+  "overrides": [
+    {
+      "files": ["*.ts", "*.tsx"],
+      "parser": "@typescript-eslint/parser",
+      "extends": ["@typescript-eslint/recommended"]
+    }
+  ]
+}
+```
+
+### **Affected Files**
+- `src/pages/Dashboard.tsx` - Created main dashboard page
+- `src/pages/ProjectView.tsx` - Created project details page
+- `src/pages/Settings.tsx` - Created settings page
+- `src/components/layout/Layout.tsx` - Created navigation layout
+- `src/main.tsx` - Removed problematic dev tools code
+- `src/types/project.ts` - Fixed Expense type import
+- `.eslintrc.json` - Fixed configuration to use overrides
+
+### **Prevention Strategies**
+1. **Create Component Stubs**: Always create stub components before referencing them
+2. **Test Incrementally**: Create and test one component at a time
+3. **Use ESLint Overrides**: Safer pattern for TypeScript configurations
+4. **Avoid Complex Dev Tools**: Keep development tooling simple during initial setup
+
+---
+
+## **Error 12: Tailwind CSS Custom Class Not Recognized**
+
+### **Problem**
+```bash
+npm run build
+# ERROR: [postcss] The `border-border` class does not exist. 
+# If `border-border` is a custom class, make sure it is defined within a `@layer` directive.
+error during build: CssSyntaxError: border-border class does not exist
+```
+
+### **Root Cause**
+CSS file uses `@apply border-border` but `border-border` is not a valid Tailwind utility class. The CSS custom properties define `--border` but Tailwind doesn't automatically create utility classes from custom properties.
+
+### **Solution**
+Replace all invalid CSS custom property classes with standard Tailwind utilities:
+```css
+// BEFORE (Invalid):
+.card {
+  @apply bg-card text-card-foreground border-border;  // ❌ Not real Tailwind classes
+}
+.btn-primary {
+  @apply bg-primary text-primary-foreground;  // ❌ Custom properties as classes
+}
+
+// AFTER (Fixed):
+.card {
+  @apply bg-white text-gray-900 border-gray-200 dark:bg-gray-950 dark:text-gray-50;  // ✅ Real Tailwind classes
+}
+.btn-primary {
+  @apply bg-brand-600 text-white hover:bg-brand-700;  // ✅ Using defined brand colors
+}
+```
+
+### **Implementation Details**
+**Root Cause**: CSS custom properties (like `--border`, `--primary`) don't automatically become Tailwind utility classes. The solution:
+1. ✅ **Use standard Tailwind classes** (chosen approach)
+2. **Use CSS custom properties directly** (`background-color: hsl(var(--primary))`)
+3. **Extend Tailwind config** to create utilities from custom properties
+
+**Comprehensive Fix Applied**:
+- **Cards**: `bg-white text-gray-900 border-gray-200` with dark mode variants
+- **Buttons**: `bg-brand-600 text-white` using defined brand colors  
+- **Inputs**: `border-gray-200 bg-white` with proper focus states
+- **Typography**: `text-gray-500` instead of `text-muted-foreground`
+
+### **Affected Files**
+- `src/index.css` - Replaced all invalid @apply statements with standard Tailwind classes
+- `body` element - Fixed background and text color with direct CSS properties
+
+### **Prevention Strategies**
+1. **Test Build Process**: Always run `npm run build` to catch CSS errors
+2. **Validate Tailwind Classes**: Ensure custom classes are properly defined
+3. **Use CSS Properties Directly**: When custom properties are needed
+4. **Check Tailwind Documentation**: Verify utility class names before using
+
+---
+
 **💡 Remember**: Every error we fixed made the system more robust. This troubleshooting guide ensures these lessons aren't lost and helps future development go smoothly! 

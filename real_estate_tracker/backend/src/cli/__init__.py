@@ -3,8 +3,23 @@ CLI Module for Real Estate Flip Tracker
 Modular command organization for better maintainability
 """
 
+import sys
+import os
 import typer
 from .commands import project, room, expense, budget, export, system
+
+# Ensure UTF-8 encoding for all output (prevents Windows charmap issues)
+if sys.platform.startswith("win"):
+    # Set UTF-8 encoding for Windows console output
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    # Reconfigure stdout/stderr for UTF-8 if needed
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+            sys.stderr.reconfigure(encoding="utf-8")
+        except (AttributeError, OSError):
+            # Fallback for older Python versions or restricted environments
+            pass
 
 # Main CLI application
 app = typer.Typer(

@@ -3,16 +3,20 @@ import { useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/tauri'
 import { toast } from 'sonner'
 
-// Import pages (to be created)
+// Import pages
 import Dashboard from '@/pages/Dashboard'
+import Projects from '@/pages/Projects'
 import ProjectView from '@/pages/ProjectView'
-import Settings from '@/pages/Settings'
+import Expenses from '@/pages/Expenses'
+  import Reports from './pages/Reports'
+  import Settings from './pages/Settings'
+  import Debug from './pages/Debug'
 
-// Import components (to be created)
+// Import components
 import Layout from '@/components/layout/Layout'
 import LoadingScreen from '@/components/LoadingScreen'
 
-// Import types (to be created)
+// Import types
 import type { AppInfo } from '@/types'
 
 function App() {
@@ -91,16 +95,38 @@ function App() {
           element={<Dashboard />} 
         />
         
-        {/* Project detail routes */}
+        {/* Projects routes */}
+        <Route 
+          path="/projects" 
+          element={<Projects />} 
+        />
         <Route 
           path="/projects/:projectId" 
           element={<ProjectView />} 
+        />
+        
+        {/* Expenses route */}
+        <Route 
+          path="/expenses" 
+          element={<Expenses />} 
+        />
+        
+        {/* Reports route */}
+        <Route 
+          path="/reports" 
+          element={<Reports />} 
         />
         
         {/* Settings route */}
         <Route 
           path="/settings" 
           element={<Settings />} 
+        />
+
+        {/* Debug route */}
+        <Route 
+          path="/debug" 
+          element={<Debug />} 
         />
         
         {/* Catch-all route for 404s */}

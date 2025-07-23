@@ -1,6 +1,8 @@
 // Layout.tsx - Main application layout with navigation
 
 import React from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import { toast } from 'sonner'
 import type { AppInfo } from '@/types'
 
 interface LayoutProps {
@@ -10,6 +12,11 @@ interface LayoutProps {
 
 export default function Layout({ children, appInfo }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = React.useState(true)
+  const location = useLocation()
+
+  const isActive = (path: string) => {
+    return location.pathname === path
+  }
 
   return (
     <div className="full-screen flex bg-background">
@@ -48,13 +55,13 @@ export default function Layout({ children, appInfo }: LayoutProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-2">
+        <nav className="flex-1 p-3">
           <ul className="space-y-1">
             <li>
-              <a
-                href="/"
+              <Link
+                to="/"
                 className={`flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors ${
-                  window.location.pathname === '/' ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
+                  isActive('/') ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
                 }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -62,55 +69,61 @@ export default function Layout({ children, appInfo }: LayoutProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5a2 2 0 012-2h4a2 2 0 012 2v10H8V5z" />
                 </svg>
                 {sidebarOpen && <span>Dashboard</span>}
-              </a>
+              </Link>
             </li>
 
             <li>
-              <a
-                href="#"
-                className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors text-muted-foreground"
+              <Link
+                to="/projects"
+                className={`flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors ${
+                  isActive('/projects') ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
+                }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5" />
                 </svg>
                 {sidebarOpen && <span>Projects</span>}
-              </a>
+              </Link>
             </li>
 
             <li>
-              <a
-                href="#"
-                className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors text-muted-foreground"
+              <Link
+                to="/expenses"
+                className={`flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors ${
+                  isActive('/expenses') ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
+                }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                 </svg>
                 {sidebarOpen && <span>Expenses</span>}
-              </a>
+              </Link>
             </li>
 
             <li>
-              <a
-                href="#"
-                className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors text-muted-foreground"
+              <Link
+                to="/reports"
+                className={`flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors ${
+                  isActive('/reports') ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
+                }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
                 {sidebarOpen && <span>Reports</span>}
-              </a>
+              </Link>
             </li>
           </ul>
         </nav>
 
         {/* Bottom Navigation */}
-        <div className="p-2 border-t border-border">
+        <div className="p-3 border-t border-border">
           <ul className="space-y-1">
             <li>
-              <a
-                href="/settings"
+              <Link
+                to="/settings"
                 className={`flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors ${
-                  window.location.pathname === '/settings' ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
+                  isActive('/settings') ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
                 }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -118,14 +131,14 @@ export default function Layout({ children, appInfo }: LayoutProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
                 {sidebarOpen && <span>Settings</span>}
-              </a>
+              </Link>
             </li>
           </ul>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0">
         {/* Header */}
         <header className="bg-card border-b border-border p-4">
           <div className="flex items-center justify-between">
@@ -139,14 +152,35 @@ export default function Layout({ children, appInfo }: LayoutProps) {
             </button>
 
             <div className="flex items-center gap-3">
-              <button className="p-2 hover:bg-accent rounded-md transition-colors">
+              <button 
+                className="p-2 hover:bg-accent rounded-md transition-colors"
+                title="Quick Edit Actions"
+                onClick={() => {
+                  const options = [
+                    'Add New Project',
+                    'Add New Expense', 
+                    'Export Current Data',
+                    'Project Settings'
+                  ]
+                  const choice = Math.floor(Math.random() * options.length)
+                  toast.info(`Quick Action: ${options[choice]} (Demo)`)
+                }}
+              >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 19v-2.586a1 1 0 01.293-.707l7-7a1 1 0 011.414 0l2.586 2.586a1 1 0 010 1.414l-7 7a1 1 0 01-.707.293H4z" />
                 </svg>
               </button>
 
-              <button className="p-2 hover:bg-accent rounded-md transition-colors">
+              <button 
+                className="p-2 hover:bg-accent rounded-md transition-colors"
+                title="Global Search"
+                onClick={() => {
+                  const searchTerms = ['kitchen renovation', 'project budget', 'material costs', 'labor expenses']
+                  const term = searchTerms[Math.floor(Math.random() * searchTerms.length)]
+                  toast.info(`Search: "${term}" (Demo - search functionality coming soon)`)
+                }}
+              >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>

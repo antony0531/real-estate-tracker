@@ -113,7 +113,7 @@ export class TauriService {
    */
   static async getProject(projectId: number): Promise<string> {
     try {
-      return await invoke<string>('get_project', { project_id: projectId })
+      return await invoke<string>('get_project', { projectId })
     } catch (error) {
       console.error(`Failed to get project ${projectId}:`, error)
       throw new Error(`Failed to get project ${projectId}: ${error}`)
@@ -135,9 +135,9 @@ export class TauriService {
   /**
    * Update an existing project
    */
-  static async updateProject(projectId: number, data: Partial<ProjectData>): Promise<string> {
+  static async updateProject(projectId: number, data: ProjectData): Promise<string> {
     try {
-      return await invoke<string>('update_project', { project_id: projectId, data })
+      return await invoke<string>('update_project', { projectId, data })
     } catch (error) {
       console.error(`Failed to update project ${projectId}:`, error)
       throw new Error(`Failed to update project ${projectId}: ${error}`)
@@ -149,7 +149,7 @@ export class TauriService {
    */
   static async deleteProject(projectId: number): Promise<string> {
     try {
-      return await invoke<string>('delete_project', { project_id: projectId })
+      return await invoke<string>('delete_project', { projectId })
     } catch (error) {
       console.error(`Failed to delete project ${projectId}:`, error)
       throw new Error(`Failed to delete project ${projectId}: ${error}`)
@@ -165,7 +165,7 @@ export class TauriService {
    */
   static async getRooms(projectId: number): Promise<string> {
     try {
-      return await invoke<string>('get_rooms', { project_id: projectId })
+      return await invoke<string>('get_rooms', { projectId })
     } catch (error) {
       console.error(`Failed to get rooms for project ${projectId}:`, error)
       throw new Error(`Failed to get rooms for project ${projectId}: ${error}`)
@@ -175,12 +175,34 @@ export class TauriService {
   /**
    * Add a room to a project
    */
-  static async addRoom(projectId: number, data: RoomData): Promise<string> {
+  static async addRoom(roomData: {
+    projectId: number
+    name: string
+    floor: number
+    length?: number
+    width?: number
+    height?: number
+    condition?: number
+    notes?: string
+  }): Promise<string> {
     try {
-      return await invoke<string>('add_room', { project_id: projectId, data })
+      const data = {
+        name: roomData.name,
+        floor: roomData.floor,
+        length: roomData.length,
+        width: roomData.width,
+        height: roomData.height || 8.0,
+        condition: roomData.condition || 3,
+        notes: roomData.notes
+      }
+
+      return await invoke<string>('add_room', { 
+        projectId: roomData.projectId, 
+        data 
+      })
     } catch (error) {
-      console.error(`Failed to add room to project ${projectId}:`, error)
-      throw new Error(`Failed to add room to project ${projectId}: ${error}`)
+      console.error(`Failed to add room to project ${roomData.projectId}:`, error)
+      throw new Error(`Failed to add room to project ${roomData.projectId}: ${error}`)
     }
   }
 
@@ -189,7 +211,7 @@ export class TauriService {
    */
   static async deleteRoom(projectId: number, roomName: string): Promise<string> {
     try {
-      return await invoke<string>('delete_room', { project_id: projectId, room_name: roomName })
+      return await invoke<string>('delete_room', { projectId, roomName })
     } catch (error) {
       console.error(`Failed to delete room ${roomName}:`, error)
       throw new Error(`Failed to delete room ${roomName}: ${error}`)
@@ -205,38 +227,105 @@ export class TauriService {
    */
   static async getExpenses(projectId: number): Promise<string> {
     try {
-      return await invoke<string>('get_expenses', { project_id: projectId })
+      // The Tauri command only supports projectId, not filters
+      // If filters are needed, we'll filter on the frontend
+      return await invoke<string>('get_expenses', { projectId })
     } catch (error) {
-      console.error(`Failed to get expenses for project ${projectId}:`, error)
-      throw new Error(`Failed to get expenses for project ${projectId}: ${error}`)
+      throw new Error(`Failed to get expenses for project ${projectId}: ${TauriService.handleError(error)}`)
     }
   }
 
   /**
    * Add an expense to a project
    */
-  static async addExpense(projectId: number, data: ExpenseData): Promise<string> {
+  static async addExpense(expenseData: {
+    projectId: number
+    roomName: string
+    category: 'material' | 'labor'
+    cost: number
+    hours?: number
+    condition?: number
+    notes?: string
+  }): Promise<string> {
     try {
-      return await invoke<string>('add_expense', { project_id: projectId, data })
+      const data = {
+        room_name: expenseData.roomName,
+        category: expenseData.category,
+        cost: expenseData.cost,
+        hours: expenseData.hours,
+        condition: expenseData.condition,
+        notes: expenseData.notes
+      }
+
+      return await invoke<string>('add_expense', { 
+        projectId: expenseData.projectId, 
+        data 
+      })
     } catch (error) {
-      console.error(`Failed to add expense to project ${projectId}:`, error)
-      throw new Error(`Failed to add expense to project ${projectId}: ${error}`)
+      console.error(`Failed to add expense to project ${expenseData.projectId}:`, error)
+      throw new Error(`Failed to add expense to project ${expenseData.projectId}: ${error}`)
     }
   }
 
   /**
-   * Delete an expense
+   * Delete an expense by ID
    */
-  static async deleteExpense(projectId: number, expenseId: number): Promise<string> {
+  static async deleteExpense(expenseId: number): Promise<string> {
     try {
       return await invoke<string>('delete_expense', { 
-        project_id: projectId, 
-        expense_id: expenseId 
+        expenseId 
       })
     } catch (error) {
       console.error(`Failed to delete expense ${expenseId}:`, error)
       throw new Error(`Failed to delete expense ${expenseId}: ${error}`)
     }
+  }
+
+  /**
+   * Get total expenses across all projects (helper method)
+   */
+  static async getAllExpenses(): Promise<string> {
+    try {
+      // Get all projects first
+      const projectsOutput = await this.getProjects()
+      
+      // Parse project IDs from the output
+      const projectIds = this.extractProjectIds(projectsOutput)
+      
+      // Get expenses for all projects
+      const allExpensesPromises = projectIds.map(id => 
+        this.getExpenses(id).catch(() => '') // Ignore errors for individual projects
+      )
+      
+      const allExpenses = await Promise.all(allExpensesPromises)
+      return allExpenses.filter(exp => exp.trim()).join('\n---PROJECT_SEPARATOR---\n')
+      
+    } catch (error) {
+      console.error('Failed to get all expenses:', error)
+      throw new Error(`Failed to get all expenses: ${error}`)
+    }
+  }
+
+  /**
+   * Helper method to extract project IDs from project list output
+   */
+  private static extractProjectIds(projectsOutput: string): number[] {
+    const lines = projectsOutput.trim().split('\n')
+    const projectIds: number[] = []
+    
+    for (const line of lines) {
+      if (line.startsWith('│') && line.includes('$')) {
+        const columns = line.split('│').map(col => col.trim()).filter(col => col)
+        if (columns.length > 0) {
+          const id = parseInt(columns[0])
+          if (!isNaN(id)) {
+            projectIds.push(id)
+          }
+        }
+      }
+    }
+    
+    return projectIds
   }
 
   // =============================================================================
@@ -248,7 +337,7 @@ export class TauriService {
    */
   static async getBudgetStatus(projectId: number): Promise<string> {
     try {
-      return await invoke<string>('get_budget_status', { project_id: projectId })
+      return await invoke<string>('get_budget_status', { projectId })
     } catch (error) {
       console.error(`Failed to get budget status for project ${projectId}:`, error)
       throw new Error(`Failed to get budget status for project ${projectId}: ${error}`)
@@ -261,7 +350,7 @@ export class TauriService {
   static async exportProject(projectId: number, format: string = 'csv'): Promise<string> {
     try {
       return await invoke<string>('export_project', { 
-        project_id: projectId, 
+        projectId, 
         format 
       })
     } catch (error) {
@@ -285,6 +374,70 @@ export class TauriService {
     } catch (error) {
       console.error('Connection test failed:', error)
       return false
+    }
+  }
+
+  /**
+   * Test Python execution capabilities
+   */
+  static async testPythonExecution(): Promise<string> {
+    try {
+      return await invoke<string>('test_python_execution')
+    } catch (error) {
+      console.error('Failed to test Python execution:', error)
+      throw new Error(`Failed to test Python execution: ${error}`)
+    }
+  }
+
+  /**
+   * Test expense addition with debug info
+   */
+  static async testExpenseAdd(): Promise<string> {
+    try {
+      return await invoke<string>('test_expense_add')
+    } catch (error) {
+      console.error('Test expense add failed:', error)
+      throw new Error(`Test expense add failed: ${error}`)
+    }
+  }
+
+  /**
+   * Get formatted list of all rooms across all projects
+   */
+  static async getAllRoomsList(): Promise<string> {
+    try {
+      const projects = await this.getProjects()
+      let allRooms = "\n=== ALL AVAILABLE ROOMS ===\n\n"
+      
+      // Parse projects from CLI output
+      const lines = projects.trim().split('\n')
+      const projectIds: number[] = []
+      
+      for (const line of lines) {
+        if (line.startsWith('│') && line.includes('$') && !line.includes('ID')) {
+          const columns = line.split('│').map(col => col.trim()).filter(col => col)
+          if (columns.length >= 1) {
+            const id = parseInt(columns[0], 10)
+            if (!isNaN(id)) {
+              projectIds.push(id)
+            }
+          }
+        }
+      }
+
+      for (const projectId of projectIds) {
+        try {
+          const roomsOutput = await this.getRooms(projectId)
+          allRooms += `\nProject ${projectId} Rooms:\n${roomsOutput}\n`
+        } catch (error) {
+          allRooms += `\nProject ${projectId}: Error loading rooms - ${error}\n`
+        }
+      }
+
+      return allRooms
+    } catch (error) {
+      console.error('Failed to get all rooms list:', error)
+      throw new Error(`Failed to get all rooms list: ${error}`)
     }
   }
 

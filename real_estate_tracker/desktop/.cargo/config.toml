@@ -1,0 +1,10 @@
+[target.x86_64-pc-windows-msvc]
+linker = "rust-lld"
+
+[build]
+# Enable parallel builds  
+jobs = 8
+
+[env]
+# Speed up builds
+RUSTFLAGS = "-C link-arg=-fuse-ld=lld"

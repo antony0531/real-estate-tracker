@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use tauri::command;
 use anyhow::Result;
 use tracing::info;
+use tracing::error;
 
 use crate::python::execute_python_command;
 
@@ -240,7 +241,7 @@ pub async fn get_rooms(project_id: u32) -> Result<String, String> {
     info!("Fetching rooms for project {}", project_id);
     
     let project_id_str = project_id.to_string();
-    let output = execute_python_command(vec!["room", "list", "--project", &project_id_str])
+    let output = execute_python_command(vec!["room", "list", &project_id_str])
         .await
         .map_err(|e| format!("Failed to get rooms for project {}: {}", project_id, e))?;
         
@@ -360,6 +361,7 @@ pub async fn get_expenses(project_id: u32) -> Result<String, String> {
 #[command]
 pub async fn add_expense(project_id: u32, data: ExpenseData) -> Result<String, String> {
     info!("Adding expense to project {}", project_id);
+    info!("Expense data: {:?}", data);
     
     let project_id_str = project_id.to_string();
     let cost_str = data.cost.to_string();
@@ -372,15 +374,19 @@ pub async fn add_expense(project_id: u32, data: ExpenseData) -> Result<String, S
         &cost_str
     ];
 
+    info!("Base command args: {:?}", args);
+
     // Collect optional string values first
     let mut temp_strings = Vec::new();
     let mut hours_idx = None;
     let mut condition_idx = None;
 
     if let Some(hours) = data.hours {
-        let hours_str = hours.to_string();
-        temp_strings.push(hours_str);
-        hours_idx = Some(temp_strings.len() - 1);
+        if hours > 0.0 {
+            let hours_str = hours.to_string();
+            temp_strings.push(hours_str);
+            hours_idx = Some(temp_strings.len() - 1);
+        }
     }
 
     if let Some(condition) = data.condition {
@@ -401,14 +407,22 @@ pub async fn add_expense(project_id: u32, data: ExpenseData) -> Result<String, S
     }
 
     if let Some(notes) = &data.notes {
-        args.push("--notes");
-        args.push(notes);
+        if !notes.trim().is_empty() {
+            args.push("--notes");
+            args.push(notes);
+        }
     }
+
+    info!("Final command args: {:?}", args);
 
     let output = execute_python_command(args)
         .await
-        .map_err(|e| format!("Failed to add expense: {}", e))?;
+        .map_err(|e| {
+            error!("Failed to execute expense add command: {}", e);
+            format!("Failed to add expense: {}", e)
+        })?;
 
+    info!("Expense add output: {}", output);
     Ok(output)
 }
 
@@ -457,4 +471,25 @@ pub async fn export_project(project_id: u32, format: String) -> Result<String, S
         .map_err(|e| format!("Failed to export project {}: {}", project_id, e))?;
 
     Ok(output)
+} 
+
+/// Test expense addition with debug info
+#[command]
+pub async fn test_expense_add() -> Result<String, String> {
+    info!("Testing expense addition with known good data");
+    
+    // Test with hardcoded values that we know work
+    let test_data = ExpenseData {
+        room_name: "Living Room".to_string(),
+        category: "material".to_string(),
+        cost: 100.0,
+        hours: None,
+        condition: Some(3),
+        notes: Some("Test expense from Tauri".to_string()),
+    };
+
+    info!("Test data: {:?}", test_data);
+
+    // Try to add to project 1 which we know exists
+    add_expense(1, test_data).await
 } 

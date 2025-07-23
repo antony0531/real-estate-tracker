@@ -79,7 +79,10 @@ fn main() {
             commands::get_budget_status,
             commands::export_project,
             python::get_python_path,
-            python::check_python_installation
+            python::check_python_installation,
+            python::debug_python_paths,
+            python::test_python_execution,
+            commands::test_expense_add
         ])
         .setup(|app| {
             // Initialize app data directory using Tauri's runtime

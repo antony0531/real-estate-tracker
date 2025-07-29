@@ -6,8 +6,9 @@
 /* Custom CSS layers for maintainable styling */
 
 @layer base {
-  /* Root variables for consistent theming */
+  /* Root variables for consistent theming - Modern design system */
   :root {
+    /* Light mode colors */
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
     
@@ -17,57 +18,64 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
     
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 217 91% 60%;          /* Modern blue #3b82f6 */
+    --primary-foreground: 0 0% 100%;
     
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
+    --secondary: 240 5% 96%;         /* Light gray */
+    --secondary-foreground: 240 10% 4%;
     
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
     
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 84% 4.9%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 0 0% 100%;
     
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
     
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 217 91% 60%;
     
     --radius: 0.5rem;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
   }
   
-  /* Dark mode theme */
+  /* Modern dark theme */
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    
-    --popover: 240 10% 3.9%;
+    --background: 240 10% 4%;         /* Rich dark #09090b */
+    --foreground: 0 0% 98%;          /* Off-white */
+    --card: 240 10% 9%;              /* Elevated dark */
+    --card-foreground: 0 0% 98%;   
+    --popover: 240 10% 9%;           
     --popover-foreground: 0 0% 98%;
+    --primary: 217 91% 60%;          /* Consistent blue */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 6% 10%;         
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 6% 10%;             
+    --muted-foreground: 240 5% 64%;  
+    --accent: 240 6% 10%;            
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62% 30%;        
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 6% 20%;            
+    --input: 240 6% 20%;             
+    --ring: 217 91% 60%;             
+    --radius: 0.5rem;                
     
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    
-    --secondary: 215 27.9% 16.9%;
-    --secondary-foreground: 210 40% 98%;
-    
-    --muted: 215 27.9% 16.9%;
-    --muted-foreground: 217.9 10.6% 64.9%;
-    
-    --accent: 215 27.9% 16.9%;
-    --accent-foreground: 210 40% 98%;
-    
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    
-    --border: 215 27.9% 16.9%;
-    --input: 215 27.9% 16.9%;
-    --ring: 216 12.2% 83.9%;
+    /* Dark mode shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
   }
 
   /* Base styles for the application */
@@ -76,10 +84,17 @@
   }
   
   body {
-    background-color: hsl(var(--background));
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.5;
+    font-weight: 400;
+    
+    /* Light theme - clean and modern */
+    background: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-family: theme('fontFamily.sans');
-    font-feature-settings: "rlig" 1, "calt" 1;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
   
   /* Disable text selection on the whole app (desktop behavior) */
@@ -98,30 +113,43 @@
     user-select: text;
   }
   
-  /* Custom scrollbar styling */
+  /* Modern scrollbar styling */
   ::-webkit-scrollbar {
-    width: 8px;
+    width: 10px;
+    height: 10px;
   }
   
   ::-webkit-scrollbar-track {
-    @apply bg-gray-100 dark:bg-gray-800;
+    background: transparent;
   }
   
   ::-webkit-scrollbar-thumb {
-    @apply bg-gray-300 dark:bg-gray-600 rounded-md;
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 5px;
+    border: 2px solid transparent;
+    background-clip: content-box;
   }
   
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-400 dark:bg-gray-500;
+    background: hsl(var(--muted-foreground) / 0.5);
+    background-clip: content-box;
+  }
+  
+  /* Selection color */
+  ::selection {
+    background: hsl(var(--primary) / 0.3);
+    color: hsl(var(--primary-foreground));
   }
 }
 
 @layer components {
-  /* Custom component styles */
+  /* Ultra-Modern component styles */
   
-  /* Card component styles */
+  /* Enhanced Card component styles with glass effect */
   .card {
-    @apply rounded-lg border border-gray-200 bg-white text-gray-900 shadow-sm dark:border-gray-800 dark:bg-gray-950 dark:text-gray-50;
+    @apply rounded-xl border border-gray-200 bg-white text-gray-900 shadow-lg backdrop-blur-sm
+           dark:border-slate-700/50 dark:bg-slate-800/80 dark:text-slate-50 
+           dark:shadow-2xl dark:shadow-slate-900/20 dark:backdrop-blur-md;
   }
   
   .card-header {
@@ -129,11 +157,11 @@
   }
   
   .card-title {
-    @apply text-2xl font-semibold leading-none tracking-tight;
+    @apply text-2xl font-semibold leading-none tracking-tight dark:text-slate-50;
   }
   
   .card-description {
-    @apply text-sm text-gray-500 dark:text-gray-400;
+    @apply text-sm text-gray-500 dark:text-slate-400;
   }
   
   .card-content {
@@ -144,26 +172,38 @@
     @apply flex items-center p-6 pt-0;
   }
   
-  /* Button variants */
+  /* Modern Button variants with enhanced dark theme */
   .btn {
-    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex items-center justify-center rounded-lg text-sm font-medium transition-all duration-200 
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 
+           disabled:pointer-events-none disabled:opacity-50 dark:focus-visible:ring-blue-400 dark:focus-visible:ring-offset-slate-800;
   }
   
   .btn-primary {
-    @apply btn bg-brand-600 text-white hover:bg-brand-700;
+    @apply btn bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl
+           dark:bg-blue-500 dark:hover:bg-blue-400 dark:shadow-blue-500/25 dark:hover:shadow-blue-500/40;
   }
   
   .btn-secondary {
-    @apply btn bg-gray-100 text-gray-900 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-50 dark:hover:bg-gray-700;
+    @apply btn bg-gray-100 text-gray-900 hover:bg-gray-200 shadow-md
+           dark:bg-slate-700/70 dark:text-slate-50 dark:hover:bg-slate-600/80 
+           dark:shadow-slate-900/20 dark:hover:shadow-slate-900/40;
   }
   
   .btn-outline {
-    @apply btn border border-gray-200 bg-white hover:bg-gray-50 hover:text-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:hover:bg-gray-800 dark:hover:text-gray-50;
+    @apply btn border border-gray-200 bg-white hover:bg-gray-50 hover:text-gray-900 shadow-sm
+           dark:border-slate-700/50 dark:bg-slate-800/50 dark:hover:bg-slate-700/60 
+           dark:hover:text-slate-50 dark:backdrop-blur-sm;
   }
   
-  /* Form input styles */
+  /* Enhanced Form input styles */
   .input {
-    @apply flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-50 dark:placeholder:text-gray-400;
+    @apply flex h-10 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm 
+           file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 
+           disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200
+           dark:border-slate-700/50 dark:bg-slate-800/70 dark:text-slate-50 dark:placeholder:text-slate-400
+           dark:focus-visible:ring-blue-400 dark:focus-visible:ring-offset-slate-800 dark:backdrop-blur-sm;
   }
   
   /* Layout helpers */
@@ -175,21 +215,30 @@
     @apply flex-1 overflow-hidden;
   }
   
-  /* Status indicator styles */
+  /* Enhanced Status indicator styles */
   .status-indicator {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-sm;
   }
   
   .status-success {
-    @apply status-indicator bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200;
+    @apply status-indicator bg-emerald-100 text-emerald-800 
+           dark:bg-emerald-500/20 dark:text-emerald-300 dark:ring-1 dark:ring-emerald-500/30;
   }
   
   .status-warning {
-    @apply status-indicator bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200;
+    @apply status-indicator bg-amber-100 text-amber-800 
+           dark:bg-amber-500/20 dark:text-amber-300 dark:ring-1 dark:ring-amber-500/30;
   }
   
   .status-error {
-    @apply status-indicator bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200;
+    @apply status-indicator bg-red-100 text-red-800 
+           dark:bg-red-500/20 dark:text-red-300 dark:ring-1 dark:ring-red-500/30;
+  }
+  
+  /* Modern glass effect for cards in dark mode */
+  .glass-card {
+    @apply backdrop-blur-xl bg-white/10 border border-white/20 shadow-xl
+           dark:bg-slate-800/30 dark:border-slate-700/50 dark:shadow-2xl dark:shadow-slate-900/30;
   }
 }
 
@@ -208,5 +257,331 @@
   /* Text utilities */
   .text-balance {
     text-wrap: balance;
+  }
+  
+  /* Modern dark theme gradient utilities */
+  .bg-modern-dark {
+    @apply bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900;
+  }
+  
+  .bg-modern-card {
+    @apply bg-gradient-to-br from-slate-800/80 to-slate-700/60 backdrop-blur-md;
+  }
+  
+  /* Enhanced shadow utilities for dark mode */
+  .shadow-modern {
+    @apply shadow-2xl shadow-slate-900/25;
+  }
+  
+  .shadow-modern-lg {
+    @apply shadow-2xl shadow-slate-900/40;
+  }
+} 
+
+/* Notion-style Cards */
+.card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    0 1px 2px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+  
+  .dark & {
+    background: #373e43;
+    border: 1px solid #4a555c;
+    box-shadow: 
+      0 2px 8px rgba(0, 0, 0, 0.3),
+      0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+  
+  &:hover {
+    .dark & {
+      background: #3d444a;
+      box-shadow: 
+        0 4px 12px rgba(0, 0, 0, 0.35),
+        0 2px 6px rgba(0, 0, 0, 0.25);
+    }
+  }
+}
+
+/* Notion-style Buttons */
+.btn {
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.15s ease;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-primary {
+  background: #2383e2;
+  color: white;
+  
+  &:hover {
+    background: #1a73c7;
+  }
+  
+  &:active {
+    background: #1565b3;
+  }
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  
+  .dark & {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    
+    .dark & {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+  }
+}
+
+/* Notion-style Input */
+.input {
+  background: hsl(var(--input));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 14px;
+  transition: all 0.15s ease;
+  
+  .dark & {
+    background: #3d444a;
+    border: 1px solid #4a555c;
+    color: #ffffff;
+  }
+  
+  &:focus {
+    outline: none;
+    border-color: #2383e2;
+    box-shadow: 0 0 0 2px rgba(35, 131, 226, 0.2);
+  }
+}
+
+/* Notion-style Sidebar */
+.sidebar {
+  .dark & {
+    background: #2f3437;
+    border-right: 1px solid #4a555c;
+  }
+}
+
+/* Status indicators - Notion style */
+.status-indicator {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-success {
+  background: rgba(46, 160, 67, 0.15);
+  color: #2ea043;
+  
+  .dark & {
+    background: rgba(46, 160, 67, 0.2);
+    color: #3fb950;
+  }
+}
+
+.status-warning {
+  background: rgba(251, 188, 5, 0.15);
+  color: #bf8700;
+  
+  .dark & {
+    background: rgba(251, 188, 5, 0.2);
+    color: #f1c232;
+  }
+}
+
+.status-error {
+  background: rgba(248, 81, 73, 0.15);
+  color: #cf222e;
+  
+  .dark & {
+    background: rgba(248, 81, 73, 0.2);
+    color: #ff6b6b;
+  }
+} 
+
+/* Notion-style Tables */
+.table {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  
+  .dark & {
+    background: #373e43;
+    border: 1px solid #4a555c;
+  }
+}
+
+.table th {
+  background: #f8f9fa;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 13px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  
+  .dark & {
+    background: #2f3437;
+    border-bottom: 1px solid #4a555c;
+    color: #9ca3af;
+  }
+}
+
+.table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 14px;
+  
+  .dark & {
+    border-bottom: 1px solid #404449;
+  }
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.table tr:hover {
+  background: #f8f9fa;
+  
+  .dark & {
+    background: #3d444a;
+  }
+}
+
+/* Notion-style Badges/Tags */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.badge-priority-urgent {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.2);
+  
+  .dark & {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.25);
+  }
+}
+
+.badge-priority-high {
+  background: rgba(245, 101, 57, 0.1);
+  color: #ea580c;
+  border-color: rgba(245, 101, 57, 0.2);
+  
+  .dark & {
+    background: rgba(245, 101, 57, 0.15);
+    color: #fb923c;
+    border-color: rgba(245, 101, 57, 0.25);
+  }
+}
+
+.badge-priority-medium {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+  border-color: rgba(245, 158, 11, 0.2);
+  
+  .dark & {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border-color: rgba(245, 158, 11, 0.25);
+  }
+}
+
+.badge-priority-low {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+  border-color: rgba(34, 197, 94, 0.2);
+  
+  .dark & {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+    border-color: rgba(34, 197, 94, 0.25);
+  }
+}
+
+.badge-status-planning {
+  background: rgba(168, 85, 247, 0.1);
+  color: #7c3aed;
+  border-color: rgba(168, 85, 247, 0.2);
+  
+  .dark & {
+    background: rgba(168, 85, 247, 0.15);
+    color: #a78bfa;
+    border-color: rgba(168, 85, 247, 0.25);
+  }
+}
+
+.badge-status-in_progress {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+  border-color: rgba(59, 130, 246, 0.2);
+  
+  .dark & {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border-color: rgba(59, 130, 246, 0.25);
+  }
+}
+
+.badge-status-completed {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+  border-color: rgba(34, 197, 94, 0.2);
+  
+  .dark & {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+    border-color: rgba(34, 197, 94, 0.25);
+  }
+}
+
+.badge-status-on_hold {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.2);
+  
+  .dark & {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.25);
   }
 } 

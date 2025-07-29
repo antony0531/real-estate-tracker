@@ -51,6 +51,13 @@ class ProjectStatus(enum.Enum):
     ON_HOLD = "on_hold"
 
 
+class Priority(enum.Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    URGENT = "urgent"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -74,6 +81,7 @@ class Project(Base):
     property_type = Column(Enum(PropertyType), nullable=False)
     property_class = Column(Enum(PropertyClass), nullable=False)
     status = Column(Enum(ProjectStatus), default=ProjectStatus.PLANNING)
+    priority = Column(Enum(Priority), default=Priority.MEDIUM)
 
     # Property details
     num_floors = Column(Integer, default=1)
@@ -129,7 +137,7 @@ class Expense(Base):
     __tablename__ = "expenses"
 
     id = Column(Integer, primary_key=True)
-    date = Column(DateTime, nullable=False)
+    date = Column(DateTime, nullable=False, default=datetime.utcnow)
     category = Column(Enum(ExpenseCategory), nullable=False)
     cost = Column(Float, nullable=False)
     labor_hours = Column(Float, default=0.0)

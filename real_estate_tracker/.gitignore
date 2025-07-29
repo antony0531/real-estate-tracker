@@ -332,4 +332,46 @@ site/
 *.temp
 *.swp
 *.swo
-*~ 
+*~
+
+# === DOCKER ===
+# Docker project files
+docker-compose.override.yml
+.dockerignore.local
+
+# Docker volumes
+data/
+postgres_data/
+redis_data/
+
+# Docker build artifacts
+.buildx-cache/
+
+# === CI/CD ===
+# GitHub Actions
+.github/workflows/*.local.yml
+
+# Build artifacts
+artifacts/
+releases/
+
+# Code coverage
+coverage/
+*.lcov
+coverage.xml
+
+# === DEVELOPMENT ===
+# Local development scripts
+scripts/local/
+dev-scripts/
+
+# Database migrations (local testing)
+migrations/versions/*.pyc
+
+# Local configuration overrides
+*.local.yml
+*.local.json
+
+# Development databases
+dev.db
+dev.sqlite3 

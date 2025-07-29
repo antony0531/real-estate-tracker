@@ -14,12 +14,12 @@ interface SettingsState {
 
 export default function Settings() {
   const [settings, setSettings] = useState<SettingsState>({
-    darkMode: false,
+    darkMode: true, // Changed to default to dark mode
     autoSave: true,
     includeRoomDetails: true,
-    databasePath: '',
-    exportPath: '',
-    isLoading: true
+    databasePath: 'C:\\Projects\\RealEstate\\data\\tracker.db',
+    exportPath: 'C:\\Projects\\RealEstate\\exports\\',
+    isLoading: false
   })
 
   useEffect(() => {

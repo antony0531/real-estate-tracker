@@ -1,0 +1,25 @@
+---
+description: when working with the frontend/UX
+alwaysApply: false
+---
+Cursor Prompt:
+"Implement both desktop and mobile UIs as a cohesive, modern Real Estate Flip Tracker:
+
+– **Desktop (Tauri + Web):**  
+  • React 18 + TypeScript, Vite  
+  • Tailwind CSS + Radix UI for styling and accessible components  
+  • Zustand for local state + React Query for server caching  
+  • Tauri IPC integration for SQLite-backed data store  
+  • Recharts or D3 for budget and expense charts, Framer Motion for smooth panel transitions  
+  • Code-splitting, lazy loading, virtualization for performance  
+  • Mobile-first breakpoints, responsive layouts with Flexbox/Grid
+
+– **Mobile (Expo + React Native):**  
+  • React Native + Expo for iOS/Android single codebase  
+  • Offline-first SQLite storage + background sync to FastAPI via REST  
+  • React Navigation, Redux Toolkit or React Hook Form for form flows  
+  • Camera, OCR, GPS & audio integration for expense capture, photo docs, and voice notes  
+  • Gesture support & skeleton loaders for interactive responsiveness  
+  • Conflict resolution UI feedback and loading/toast notifications  
+
+Ensure a shared design system and reusable components, full accessibility (ARIA, semantic elements, keyboard/touch nav), real‐time feedback (optimistic updates, spinners), and top performance across platforms."

@@ -1,0 +1,63 @@
+# Development-specific Docker Compose configuration
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        - DEV_MODE=true
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - RELOAD=true
+    volumes:
+      - ./backend:/app
+      - backend-cache:/root/.cache
+    command: python -m src.cli  # Override to run API: python -m uvicorn src.api:app --reload --host 0.0.0.0
+
+  frontend:
+    build:
+      context: ./desktop
+      dockerfile: Dockerfile.dev
+    environment:
+      - NODE_ENV=development
+      - VITE_HMR_PORT=5173
+      - CHOKIDAR_USEPOLLING=true  # For file watching in Docker
+    volumes:
+      - ./desktop/src:/app/src
+      - ./desktop/public:/app/public
+      - ./desktop/index.html:/app/index.html
+      - ./desktop/vite.config.ts:/app/vite.config.ts
+      - ./desktop/tailwind.config.ts:/app/tailwind.config.ts
+      - ./desktop/tsconfig.json:/app/tsconfig.json
+    stdin_open: true
+    tty: true
+
+  # Development database with GUI
+  adminer:
+    image: adminer:latest
+    container_name: real_estate_db_admin
+    ports:
+      - "8080:8080"
+    networks:
+      - real_estate_network
+    depends_on:
+      - backend
+
+  # Development mail server for testing emails
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: real_estate_mail
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - real_estate_network
+
+volumes:
+  backend-cache:
+    driver: local

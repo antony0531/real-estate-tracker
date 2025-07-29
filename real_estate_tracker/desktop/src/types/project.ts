@@ -2,28 +2,45 @@ import { PropertyType, PropertyClass, ProjectStatus } from './index'
 import type { Expense } from './expense'
 
 // Project data types
-export interface Project {
+export interface ProjectData {
   id: number
   name: string
+  budget: number
+  spent: number
+  status: string
+  type: string
+  created: string
+  priority: 'high' | 'medium' | 'low' | 'urgent'
+  completion: number
+  rooms: number
+  timeline: string
   description?: string
   address?: string
-  totalBudget: number
-  propertyType: PropertyType
-  propertyClass: PropertyClass
-  status: ProjectStatus
+  totalBudget?: number
+  propertyType?: PropertyType
+  propertyClass?: PropertyClass
   squareFootage?: number
-  createdAt: string
-  updatedAt: string
-  
-  // Calculated fields
-  totalExpenses?: number
-  budgetUsed?: number
-  budgetRemaining?: number
-  completionPercentage?: number
-  
-  // Related data
-  rooms?: Room[]
-  expenses?: Expense[]
+}
+
+export interface Project extends ProjectData {
+  // Any additional fields specific to the Projects view
+}
+
+export interface DashboardStats {
+  projectCount: number
+  totalBudget: number
+  totalSpent: number
+  isLoading: boolean
+}
+
+export interface ExpenseData {
+  id: number
+  date: string
+  roomName: string
+  category: string
+  cost: number
+  hours?: number
+  notes?: string
 }
 
 // Room data types

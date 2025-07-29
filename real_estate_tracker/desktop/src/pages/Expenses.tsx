@@ -1,30 +1,43 @@
-// Expenses.tsx - Expense management page
+// Expenses.tsx - Enhanced with edit and delete functionality
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { TauriService } from '../services/tauri'
-import ExpenseModal from '../components/ExpenseModal'
+import { TauriService } from '@/services/tauri'
+import ExpenseModal from '@/components/ExpenseModal'
+import EditExpenseModal from '@/components/modals/EditExpenseModal'
+import DeleteConfirmationModal from '@/components/modals/DeleteConfirmationModal'
+import ScrollableSelect from '@/components/ui/ScrollableSelect'
 
 interface Expense {
   id: number
-  date: string
-  projectName: string
-  projectId: number
-  roomName: string
-  description: string
-  category: string
+  project_id: number
+  project_name: string
+  room_name: string
+  category: 'material' | 'labor'
   cost: number
-  hours?: number
+  labor_hours?: number
+  room_condition_after?: number
   notes?: string
+  date: string
+}
+
+interface Project {
+  id: number
+  name: string
+  budget: number
+  rooms: Array<{ name: string }>
 }
 
 export default function Expenses() {
   const [expenses, setExpenses] = useState<Expense[]>([])
-  const [projects, setProjects] = useState<Array<{id: number, name: string}>>([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [selectedProject, setSelectedProject] = useState<string>('all')
-  const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null)
+  const [filterProject, setFilterProject] = useState('all')
+  const [filterCategory, setFilterCategory] = useState('all')
 
   useEffect(() => {
     loadExpenses()
@@ -56,7 +69,7 @@ export default function Expenses() {
 
   const parseProjectsFromOutput = (output: string) => {
     const lines = output.trim().split('\n')
-    const projects: Array<{id: number, name: string}> = []
+    const projects: Project[] = []
     
     for (const line of lines) {
       if (line.startsWith('│') && line.includes('$')) {
@@ -65,7 +78,7 @@ export default function Expenses() {
           const id = parseInt(columns[0])
           const name = columns[1]
           if (!isNaN(id) && name) {
-            projects.push({ id, name })
+            projects.push({ id, name, budget: 0, rooms: [] }) // Placeholder for budget and rooms
           }
         }
       }
@@ -74,7 +87,7 @@ export default function Expenses() {
     return projects
   }
 
-  const parseAllExpensesFromOutput = (output: string, projectsData: Array<{id: number, name: string}>): Expense[] => {
+  const parseAllExpensesFromOutput = (output: string, projectsData: Project[]): Expense[] => {
     const expenses: Expense[] = []
     const projectSections = output.split('\n---PROJECT_SEPARATOR---\n')
     
@@ -102,29 +115,35 @@ export default function Expenses() {
       
       // Parse expense table rows
       for (const line of lines) {
-        if (line.startsWith('│') && line.includes('$')) {
+        // Skip header and separator lines
+        if (line.includes('──') || line.includes('Date') || line.includes('Cost') || line.includes('ID')) {
+          continue
+        }
+        
+        // Look for lines with expense data (containing $ symbol)
+        if (line.includes('$')) {
           const columns = line.split('│').map(col => col.trim()).filter(col => col)
           
           if (columns.length >= 5) {
-            const [date, roomName, category, cost, hours, notes] = columns
+            // New format: ID, Date, Room, Category, Cost, Notes
+            const [id, date, roomName, category, cost, notes] = columns
             
-            const costMatch = cost.match(/\$([0-9,]+\.[0-9]+)/)
+            const costMatch = cost.match(/\$([0-9,]+(?:\.[0-9]+)?)/)
             const costValue = costMatch ? parseFloat(costMatch[1].replace(/,/g, '')) : 0
             
-            const hoursValue = hours && hours !== '-' ? parseFloat(hours) : undefined
-            
-            expenses.push({
-              id: expenses.length + 1,
-              date: date || 'Unknown',
-              projectName,
-              projectId,
-              roomName: roomName || 'Unknown Room',
-              description: notes || `${category} expense in ${roomName}`,
-              category: category || 'Unknown',
-              cost: costValue,
-              hours: hoursValue,
-              notes: notes || ''
-            })
+            if (costValue > 0) {
+              expenses.push({
+                id: parseInt(id) || expenses.length + 1,
+                project_id: projectId,
+                project_name: projectName,
+                room_name: roomName || 'Unknown Room',
+                category: category as 'material' | 'labor',
+                cost: costValue,
+                labor_hours: undefined, // Not in new format
+                notes: notes || '',
+                date: date || 'Unknown',
+              })
+            }
           }
         }
       }
@@ -134,8 +153,8 @@ export default function Expenses() {
   }
 
   const filteredExpenses = expenses.filter(expense => {
-    const projectMatch = selectedProject === 'all' || expense.projectId.toString() === selectedProject
-    const categoryMatch = selectedCategory === 'all' || expense.category.toLowerCase() === selectedCategory.toLowerCase()
+    const projectMatch = filterProject === 'all' || expense.project_id.toString() === filterProject
+    const categoryMatch = filterCategory === 'all' || expense.category.toLowerCase() === filterCategory.toLowerCase()
     return projectMatch && categoryMatch
   })
 
@@ -152,9 +171,9 @@ export default function Expenses() {
 
   const getCategoryColor = (category: string) => {
     switch (category.toLowerCase()) {
-      case 'material': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-      case 'labor': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
+      case 'material': return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800'
+      case 'labor': return 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800'
+      default: return 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/30 dark:text-gray-300 dark:border-gray-800'
     }
   }
 
@@ -166,22 +185,32 @@ export default function Expenses() {
     setIsExpenseModalOpen(true)
   }
 
-  const handleExpenseSuccess = () => {
-    loadExpenses()
-    toast.success('Expense added successfully!')
-  }
-
   const handleEditExpense = (expense: Expense) => {
-    toast.info('Expense editing functionality coming soon!')
-    console.log('Edit expense:', expense)
+    setSelectedExpense(expense)
+    setIsEditModalOpen(true)
   }
 
   const handleDeleteExpense = (expense: Expense) => {
-    if (confirm(`Are you sure you want to delete this ${expense.category} expense of $${expense.cost.toLocaleString()}?`)) {
-      toast.info('Expense deletion functionality coming soon!')
-      console.log('Delete expense:', expense)
-      // TODO: Implement actual deletion via TauriService.deleteExpense(expense.id)
+    setSelectedExpense(expense)
+    setIsDeleteModalOpen(true)
+  }
+
+  const confirmDeleteExpense = async () => {
+    if (!selectedExpense) return
+
+    try {
+      await TauriService.deleteExpense(selectedExpense.id)
+      toast.success('Expense deleted successfully!')
+      loadExpenses() // Reload expenses after deletion
+    } catch (error) {
+      console.error('Failed to delete expense:', error)
+      toast.error(`Failed to delete expense: ${error}`)
+      throw error // Re-throw to prevent modal from closing
     }
+  }
+
+  const handleEditSuccess = () => {
+    loadExpenses() // Reload expenses after edit
   }
 
   if (isLoading) {
@@ -204,161 +233,314 @@ export default function Expenses() {
   }
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-50">Expenses</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">
-            Track expenses across your projects
-          </p>
-        </div>
-        <button 
-          className="btn-primary px-4 py-2"
-          onClick={handleAddExpense}
-        >
-          Add Expense
-        </button>
-      </div>
-
-      {/* Filters */}
-      <div className="mb-6 flex gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-2">Filter by Project</label>
-          <select 
-            value={selectedProject}
-            onChange={(e) => setSelectedProject(e.target.value)}
-            className="form-select"
+    <div className="p-6 max-w-7xl mx-auto">
+      {/* Professional Header - Monday.com Style */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-50 mb-1">Expenses</h1>
+            <p className="text-gray-600 dark:text-gray-300">
+              Track and manage project expenses across your portfolio
+            </p>
+          </div>
+          <button 
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+            onClick={handleAddExpense}
           >
-            <option value="all">All Projects</option>
-            {projects.map(project => (
-              <option key={project.id} value={project.id.toString()}>
-                {project.name}
-              </option>
-            ))}
-          </select>
+            + Add Expense
+          </button>
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-2">Filter by Category</label>
-          <select 
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="form-select"
-          >
-            <option value="all">All Categories</option>
-            <option value="material">Material</option>
-            <option value="labor">Labor</option>
-          </select>
-        </div>
-      </div>
 
-      {/* Expense Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div className="card p-4">
-          <h3 className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Expenses</h3>
-          <p className="text-2xl font-bold text-red-600">${totalExpenses.toLocaleString()}</p>
-          <p className="text-xs text-gray-500">Across all projects</p>
-        </div>
-        <div className="card p-4">
-          <h3 className="text-sm font-medium text-gray-600 dark:text-gray-300">This Month</h3>
-          <p className="text-2xl font-bold text-orange-600">${thisMonthExpenses.toLocaleString()}</p>
-          <p className="text-xs text-gray-500">Current month spending</p>
-        </div>
-        <div className="card p-4">
-          <h3 className="text-sm font-medium text-gray-600 dark:text-gray-300">Materials</h3>
-          <p className="text-2xl font-bold text-blue-600">${materialExpenses.toLocaleString()}</p>
-          <p className="text-xs text-gray-500">Material expenses</p>
-        </div>
-        <div className="card p-4">
-          <h3 className="text-sm font-medium text-gray-600 dark:text-gray-300">Labor</h3>
-          <p className="text-2xl font-bold text-green-600">${laborExpenses.toLocaleString()}</p>
-          <p className="text-xs text-gray-500">Labor expenses</p>
-        </div>
-      </div>
-
-      {/* Expenses List */}
-      {filteredExpenses.length === 0 ? (
-        <div className="text-center py-12">
-          <h3 className="text-lg font-medium mb-2">No Expenses Recorded</h3>
-          <p className="text-gray-500 dark:text-gray-400 mb-6">
-            Start tracking your project expenses to get insights into your spending patterns.
-          </p>
-          <div className="space-y-4">
-            <button 
-              className="btn-primary"
-              onClick={handleAddExpense}
-            >
-              Add First Expense
-            </button>
+        {/* Enhanced Filters & Search - Notion Style */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Filter & Search</h3>
             <div className="text-sm text-gray-500 dark:text-gray-400">
-              <p>Choose from your available projects and start tracking expenses</p>
-              <p>This feature includes:</p>
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>Add expenses by category (Materials, Labor, etc.)</li>
-                <li>Track expenses per project and room</li>
-                <li>View expense summaries and budget analysis</li>
-                <li>Filter expenses by project and category</li>
-              </ul>
+              {filteredExpenses.length} of {expenses.length} expenses
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            {/* Project Filter */}
+            <div className="md:col-span-2">
+              <ScrollableSelect
+                label="Project"
+                value={filterProject}
+                onChange={(value) => setFilterProject(value)}
+                options={[
+                  { value: "all", label: "All Projects", description: `${expenses.length} total expenses` },
+                  ...projects.map(project => ({
+                    value: project.id.toString(),
+                    label: project.name,
+                    description: `Budget: $${project.budget?.toLocaleString() || '0'}`
+                  }))
+                ]}
+                placeholder="Select project filter"
+                searchable={true}
+                maxHeight="250px"
+                className="w-full"
+              />
+            </div>
+
+            {/* Category Filter */}
+            <div>
+              <ScrollableSelect
+                label="Category"
+                value={filterCategory}
+                onChange={(value) => setFilterCategory(value)}
+                options={[
+                  { value: "all", label: "All Categories", description: "Materials and Labor" },
+                  { value: "material", label: "Materials", description: "Physical materials and supplies" },
+                  { value: "labor", label: "Labor", description: "Work and professional services" }
+                ]}
+                placeholder="Select category"
+                searchable={false}
+                maxHeight="200px"
+                className="w-full"
+              />
+            </div>
+
+            {/* Clear Filters */}
+            <div className="flex items-end">
+              <button
+                onClick={() => {
+                  setFilterProject('all')
+                  setFilterCategory('all')
+                }}
+                className="w-full px-3 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm"
+              >
+                Clear Filters
+              </button>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Enhanced Stats Cards - Monday.com Style */}
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Expense Overview</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Total Expenses */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg transition-all">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Total</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">All projects</p>
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-red-600">${totalExpenses.toLocaleString()}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{filteredExpenses.length} transactions</p>
+            </div>
+          </div>
+
+          {/* This Month */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg transition-all">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">This Month</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Current</p>
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-orange-600">${thisMonthExpenses.toLocaleString()}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Monthly total</p>
+            </div>
+          </div>
+
+          {/* Materials */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg transition-all">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Materials</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Supplies</p>
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-blue-600">${materialExpenses.toLocaleString()}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {totalExpenses > 0 ? ((materialExpenses / totalExpenses) * 100).toFixed(0) : 0}% of total
+              </p>
+            </div>
+          </div>
+
+          {/* Labor */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg transition-all">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Labor</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Contractors</p>
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-green-600">${laborExpenses.toLocaleString()}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {totalExpenses > 0 ? ((laborExpenses / totalExpenses) * 100).toFixed(0) : 0}% of total
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Professional Expenses Table/List */}
+      {filteredExpenses.length === 0 ? (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+            {expenses.length === 0 ? 'No Expenses Yet' : 'No Expenses Match Filter'}
+          </h3>
+          <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">
+            {expenses.length === 0 
+              ? 'Start tracking your project expenses to monitor spending and stay within budget.'
+              : 'Try adjusting your filters to see more expenses.'
+            }
+          </p>
+          <div className="space-y-4">
+            <button 
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              onClick={handleAddExpense}
+            >
+              {expenses.length === 0 ? 'Add First Expense' : 'Add New Expense'}
+            </button>
+            {expenses.length === 0 && (
+              <div className="text-sm text-gray-500 dark:text-gray-400 space-y-2">
+                <p className="font-medium">Track expenses by:</p>
+                <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
+                  <div className="text-left">
+                    <p>• Materials & supplies</p>
+                    <p>• Labor & contractors</p>
+                  </div>
+                  <div className="text-left">
+                    <p>• Project categorization</p>
+                    <p>• Room-specific tracking</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       ) : (
-        <div className="card">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Expense Transactions</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Detailed breakdown of all project expenses
+            </p>
+          </div>
+          
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-800">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-900">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-1/4">
+                    Date & Project
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Project
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-2/5">
                     Description
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-1/6">
                     Category
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-1/6">
                     Amount
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-1/6">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredExpenses.map((expense) => (
-                  <tr key={expense.id}>
-                    <td className="px-4 py-4 text-sm text-gray-900 dark:text-gray-100">
-                      {expense.date}
+                  <tr key={expense.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="max-w-xs">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                          {expense.project_name}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {expense.date} • {expense.room_name}
+                        </div>
+                      </div>
                     </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 dark:text-gray-100">
-                      {expense.projectName}
+                    <td className="px-4 py-3">
+                      <div className="max-w-sm">
+                        <div className="text-sm text-gray-900 dark:text-gray-100 truncate">
+                          {expense.notes || `${expense.category} expense in ${expense.room_name}`}
+                        </div>
+                        {expense.notes && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">
+                            {expense.notes}
+                          </div>
+                        )}
+                      </div>
                     </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 dark:text-gray-100">
-                      {expense.description}
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col items-start">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getCategoryColor(expense.category)}`}>
+                          {expense.category === 'material' ? '🔧 Material' : '👷 Labor'}
+                        </span>
+                        {expense.category === 'labor' && expense.labor_hours && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            {expense.labor_hours}h
+                          </div>
+                        )}
+                      </div>
                     </td>
-                    <td className="px-4 py-4">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getCategoryColor(expense.category)}`}>
-                        {expense.category}
-                      </span>
+                    <td className="px-4 py-3">
+                      <div className="text-right">
+                        <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                          ${expense.cost.toLocaleString()}
+                        </div>
+                        {expense.category === 'labor' && expense.labor_hours && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            ${(expense.cost / expense.labor_hours).toFixed(0)}/hr
+                          </div>
+                        )}
+                      </div>
                     </td>
-                    <td className="px-4 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">
-                      ${expense.cost.toLocaleString()}
-                    </td>
-                    <td className="px-4 py-4 text-sm">
-                      <div className="flex space-x-2">
+                    <td className="px-4 py-3 text-sm">
+                      <div className="flex items-center space-x-2">
                         <button 
                           onClick={() => handleEditExpense(expense)}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="text-blue-600 hover:text-blue-900 dark:hover:text-blue-400 font-medium transition-colors text-xs"
                         >
                           Edit
                         </button>
                         <button 
                           onClick={() => handleDeleteExpense(expense)}
-                          className="text-red-600 hover:text-red-900"
+                          className="text-red-600 hover:text-red-900 dark:hover:text-red-400 font-medium transition-colors text-xs"
                         >
                           Delete
                         </button>
@@ -371,13 +553,33 @@ export default function Expenses() {
           </div>
         </div>
       )}
+
+      {/* Expense Modal */}
       <ExpenseModal
         isOpen={isExpenseModalOpen}
         onClose={() => setIsExpenseModalOpen(false)}
-        onSuccess={handleExpenseSuccess}
+        onSuccess={loadExpenses}
         projects={projects}
-        projectId={undefined}
-        projectName={undefined}
+      />
+
+      {/* Edit Expense Modal */}
+      <EditExpenseModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onSuccess={handleEditSuccess}
+        expense={selectedExpense}
+        projects={projects}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDeleteExpense}
+        title="Delete Expense"
+        message={`Are you sure you want to delete this ${selectedExpense?.category} expense of $${selectedExpense?.cost.toLocaleString()}?`}
+        itemName={selectedExpense?.notes || `${selectedExpense?.category} expense`}
+        dangerText="This will permanently remove the expense from your project records."
       />
     </div>
   )

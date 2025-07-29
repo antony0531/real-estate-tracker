@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { TauriService, type ProjectData } from '../services/tauri'
+import ScrollableSelect from './ui/ScrollableSelect'
 
 interface ProjectModalProps {
   isOpen: boolean
@@ -58,12 +59,28 @@ export default function ProjectModal({ isOpen, onClose, onSuccess, project }: Pr
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'budget' || name === 'sqft' || name === 'floors' 
-        ? value === '' ? undefined : Number(value)
-        : value
-    }))
+    
+    setFormData(prev => {
+      let newValue: any = value
+      
+      // Handle number conversions
+      if (name === 'budget' || name === 'sqft' || name === 'floors') {
+        newValue = value === '' ? undefined : Number(value)
+      }
+      
+      const updated = { ...prev, [name]: newValue }
+      
+      // Auto-update property_class when property_type changes
+      if (name === 'property_type') {
+        if (value === 'single_family') {
+          updated.property_class = 'sf_class_c' // Default to mid-range
+        } else if (value === 'multifamily') {
+          updated.property_class = 'mf_class_b' // Default to standard
+        }
+      }
+      
+      return updated
+    })
   }
 
   if (!isOpen) return null
@@ -130,42 +147,84 @@ export default function ProjectModal({ isOpen, onClose, onSuccess, project }: Pr
           {/* Property Type and Class */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="property_type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Property Type *
-              </label>
-              <select
-                id="property_type"
-                name="property_type"
+              <ScrollableSelect
+                label="Property Type *"
                 value={formData.property_type}
-                onChange={handleInputChange}
+                onChange={(value) => {
+                  setFormData(prev => ({ 
+                    ...prev, 
+                    property_type: value,
+                    // Reset property class when type changes
+                    property_class: value === 'single_family' ? 'sf_class_c' : 'mf_class_b'
+                  }))
+                }}
+                options={[
+                  { 
+                    value: "single_family", 
+                    label: "Single Family", 
+                    description: "Single-family residential properties" 
+                  },
+                  { 
+                    value: "multifamily", 
+                    label: "Multifamily", 
+                    description: "Multi-unit residential properties" 
+                  }
+                ]}
+                placeholder="Select property type"
                 required
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-gray-100"
-              >
-                <option value="single_family">Single Family</option>
-                <option value="multifamily">Multifamily</option>
-                <option value="condo">Condo</option>
-                <option value="townhouse">Townhouse</option>
-                <option value="commercial">Commercial</option>
-              </select>
+                searchable={false}
+                maxHeight="200px"
+              />
             </div>
 
             <div>
-              <label htmlFor="property_class" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Property Class *
-              </label>
-              <select
-                id="property_class"
-                name="property_class"
+              <ScrollableSelect
+                label="Property Class *"
                 value={formData.property_class}
-                onChange={handleInputChange}
+                onChange={(value) => setFormData(prev => ({ ...prev, property_class: value }))}
+                options={formData.property_type === 'single_family' ? [
+                  { 
+                    value: "sf_class_a", 
+                    label: "Class A - Ultra-Luxury", 
+                    description: "$2.5-4M property value" 
+                  },
+                  { 
+                    value: "sf_class_b", 
+                    label: "Class B - Luxury", 
+                    description: "$1-2M property value" 
+                  },
+                  { 
+                    value: "sf_class_c", 
+                    label: "Class C - Mid-Range", 
+                    description: "$700K-999K property value" 
+                  },
+                  { 
+                    value: "sf_class_d", 
+                    label: "Class D - Budget", 
+                    description: "<$550K property value" 
+                  }
+                ] : [
+                  { 
+                    value: "mf_class_a", 
+                    label: "Class A - Premium", 
+                    description: "$1-1.5M property value" 
+                  },
+                  { 
+                    value: "mf_class_b", 
+                    label: "Class B - Standard", 
+                    description: "$750K-900K property value" 
+                  },
+                  { 
+                    value: "mf_class_c", 
+                    label: "Class C - Value", 
+                    description: "$500K-749K property value" 
+                  }
+                ]}
+                placeholder="Select property class"
                 required
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-gray-100"
-              >
-                <option value="sf_class_a">Class A (High-end)</option>
-                <option value="sf_class_b">Class B (Mid-range)</option>
-                <option value="sf_class_c">Class C (Budget)</option>
-                <option value="sf_class_d">Class D (Value)</option>
-              </select>
+                searchable={false}
+                maxHeight="250px"
+              />
             </div>
           </div>
 
@@ -204,22 +263,21 @@ export default function ProjectModal({ isOpen, onClose, onSuccess, project }: Pr
             </div>
 
             <div>
-              <label htmlFor="floors" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Number of Floors
-              </label>
-              <select
-                id="floors"
-                name="floors"
-                value={formData.floors || ''}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-gray-100"
-              >
-                <option value="">Select floors</option>
-                <option value="1">1 Floor</option>
-                <option value="2">2 Floors</option>
-                <option value="3">3 Floors</option>
-                <option value="4">4+ Floors</option>
-              </select>
+              <ScrollableSelect
+                label="Number of Floors"
+                value={formData.floors?.toString() || ''}
+                onChange={(value) => setFormData(prev => ({ ...prev, floors: value ? parseInt(value) : undefined }))}
+                options={[
+                  { value: "", label: "Not specified", description: "Floor count unknown" },
+                  { value: "1", label: "1 Floor", description: "Single story property" },
+                  { value: "2", label: "2 Floors", description: "Two story property" },
+                  { value: "3", label: "3 Floors", description: "Three story property" },
+                  { value: "4", label: "4+ Floors", description: "Multi-story property" }
+                ]}
+                placeholder="Select floors"
+                searchable={false}
+                maxHeight="200px"
+              />
             </div>
           </div>
 

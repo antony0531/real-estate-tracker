@@ -27,6 +27,15 @@ export interface ProjectData {
   address?: string
 }
 
+export interface UpdateProjectData {
+  name?: string
+  budget?: number
+  description?: string
+  floors?: number
+  sqft?: number
+  address?: string
+}
+
 export interface RoomData {
   name: string
   floor: number
@@ -125,7 +134,14 @@ export class TauriService {
    */
   static async createProject(data: ProjectData): Promise<string> {
     try {
-      return await invoke<string>('create_project', { data })
+      const result = await invoke<string>('create_project', { data })
+
+      // Invalidate cache after creating project
+      const { dataCache } = await import('./dataCache')
+      dataCache.invalidateProjects()
+      console.log(`[TAURI] Cache invalidated after creating new project`)
+
+      return result
     } catch (error) {
       console.error('Failed to create project:', error)
       throw new Error(`Failed to create project: ${error}`)
@@ -135,9 +151,16 @@ export class TauriService {
   /**
    * Update an existing project
    */
-  static async updateProject(projectId: number, data: ProjectData): Promise<string> {
+  static async updateProject(projectId: number, data: UpdateProjectData): Promise<string> {
     try {
-      return await invoke<string>('update_project', { projectId, data })
+      const result = await invoke<string>('update_project', { projectId, data })
+
+      // Invalidate cache after updating project
+      const { dataCache } = await import('./dataCache')
+      dataCache.invalidateProjects()
+      console.log(`[TAURI] Cache invalidated after updating project ${projectId}`)
+
+      return result
     } catch (error) {
       console.error(`Failed to update project ${projectId}:`, error)
       throw new Error(`Failed to update project ${projectId}: ${error}`)
@@ -149,7 +172,15 @@ export class TauriService {
    */
   static async deleteProject(projectId: number): Promise<string> {
     try {
-      return await invoke<string>('delete_project', { projectId })
+      const result = await invoke<string>('delete_project', { projectId })
+
+      // Invalidate cache after deleting project
+      const { dataCache } = await import('./dataCache')
+      dataCache.invalidateProjects()
+      dataCache.invalidateExpenses() // Also invalidate expenses since project is deleted
+      console.log(`[TAURI] Cache invalidated after deleting project ${projectId}`)
+
+      return result
     } catch (error) {
       console.error(`Failed to delete project ${projectId}:`, error)
       throw new Error(`Failed to delete project ${projectId}: ${error}`)
@@ -165,56 +196,110 @@ export class TauriService {
    */
   static async getRooms(projectId: number): Promise<string> {
     try {
-      return await invoke<string>('get_rooms', { projectId })
-    } catch (error) {
+      const result = await invoke<string>('get_rooms', { projectId })
+      return result || ''
+    } catch (error: unknown) {
       console.error(`Failed to get rooms for project ${projectId}:`, error)
-      throw new Error(`Failed to get rooms for project ${projectId}: ${error}`)
+      const errorMessage = this.handleError(error)
+      throw new Error(`Failed to get rooms for project ${projectId}: ${errorMessage}`)
     }
   }
 
   /**
    * Add a room to a project
    */
-  static async addRoom(roomData: {
-    projectId: number
-    name: string
-    floor: number
-    length?: number
-    width?: number
-    height?: number
-    condition?: number
+  static async addRoom(
+    projectId: number,
+    name: string,
+    floor: number,
+    length?: number,
+    width?: number,
+    height?: number,
+    condition?: number,
     notes?: string
-  }): Promise<string> {
+  ): Promise<void> {
     try {
-      const data = {
-        name: roomData.name,
-        floor: roomData.floor,
-        length: roomData.length,
-        width: roomData.width,
-        height: roomData.height || 8.0,
-        condition: roomData.condition || 3,
-        notes: roomData.notes
-      }
-
-      return await invoke<string>('add_room', { 
-        projectId: roomData.projectId, 
-        data 
+      await invoke('add_room', {
+        projectId,
+        data: {
+          name,
+          floor,
+          length_ft: length,
+          width_ft: width,
+          height_ft: height,
+          initial_condition: condition,
+          notes,
+        }
       })
-    } catch (error) {
-      console.error(`Failed to add room to project ${roomData.projectId}:`, error)
-      throw new Error(`Failed to add room to project ${roomData.projectId}: ${error}`)
+
+      // Invalidate cache after adding room
+      const { dataCache } = await import('./dataCache')
+      dataCache.invalidateRooms(projectId)
+      console.log(`[TAURI] Cache invalidated after adding room to project ${projectId}`)
+    } catch (error: unknown) {
+      console.error('Failed to add room:', error)
+      const errorMessage = this.handleError(error)
+      throw new Error(`Failed to add room: ${errorMessage}`)
     }
   }
 
   /**
-   * Delete a room
+   * Update a room in a project
+   */
+  static async updateRoom(
+    projectId: number,
+    currentName: string,
+    newName?: string,
+    length?: number,
+    width?: number,
+    height?: number,
+    condition?: number,
+    notes?: string
+  ): Promise<void> {
+    try {
+      await invoke('update_room', {
+        projectId,
+        roomName: currentName,
+        data: {
+          name: newName,
+          length_ft: length,
+          width_ft: width,
+          height_ft: height,
+          initial_condition: condition,
+          notes,
+        }
+      })
+
+      // Invalidate cache after updating room
+      const { dataCache } = await import('./dataCache')
+      dataCache.invalidateRooms(projectId)
+      console.log(`[TAURI] Cache invalidated after updating room in project ${projectId}`)
+    } catch (error: unknown) {
+      console.error('Failed to update room:', error)
+      const errorMessage = this.handleError(error)
+      throw new Error(`Failed to update room: ${errorMessage}`)
+    }
+  }
+
+  /**
+   * Delete a room from a project
    */
   static async deleteRoom(projectId: number, roomName: string): Promise<string> {
     try {
-      return await invoke<string>('delete_room', { projectId, roomName })
+      const result = await invoke<string>('delete_room', {
+        project_id: projectId,
+        room_name: roomName,
+      })
+
+      // Invalidate cache after deleting room
+      const { dataCache } = await import('./dataCache')
+      dataCache.invalidateRooms(projectId)
+      console.log(`[TAURI] Cache invalidated after deleting room from project ${projectId}`)
+
+      return result
     } catch (error) {
-      console.error(`Failed to delete room ${roomName}:`, error)
-      throw new Error(`Failed to delete room ${roomName}: ${error}`)
+      console.error('Failed to delete room:', error)
+      throw new Error(`Failed to delete room: ${error}`)
     }
   }
 
@@ -257,10 +342,21 @@ export class TauriService {
         notes: expenseData.notes
       }
 
-      return await invoke<string>('add_expense', { 
+      const result = await invoke<string>('add_expense', { 
         projectId: expenseData.projectId, 
         data 
       })
+
+      // Invalidate all relevant caches
+      const { dataCache } = await import('./dataCache')
+      // Invalidate expenses for this project and all expenses
+      dataCache.invalidateExpenses(expenseData.projectId)
+      dataCache.invalidateExpenses() // This will clear all expense caches
+      dataCache.invalidateDashboardStats()
+      dataCache.invalidateProjects()
+      console.log(`[TAURI] Cache invalidated after adding expense to project ${expenseData.projectId}`)
+
+      return result
     } catch (error) {
       console.error(`Failed to add expense to project ${expenseData.projectId}:`, error)
       throw new Error(`Failed to add expense to project ${expenseData.projectId}: ${error}`)
@@ -272,12 +368,51 @@ export class TauriService {
    */
   static async deleteExpense(expenseId: number): Promise<string> {
     try {
-      return await invoke<string>('delete_expense', { 
+      const result = await invoke<string>('delete_expense', { 
         expenseId 
       })
+
+      // Invalidate cache after deleting expense
+      const { dataCache } = await import('./dataCache')
+      dataCache.invalidateExpenses() // Invalidate all expenses since we don't know project ID
+      console.log(`[TAURI] Cache invalidated after deleting expense ${expenseId}`)
+
+      return result
     } catch (error) {
       console.error(`Failed to delete expense ${expenseId}:`, error)
       throw new Error(`Failed to delete expense ${expenseId}: ${error}`)
+    }
+  }
+
+  /**
+   * Update an expense
+   */
+  static async updateExpense(
+    expenseId: number, 
+    data: {
+      room_name?: string
+      category?: 'material' | 'labor'
+      cost?: number
+      hours?: number
+      condition?: number
+      notes?: string
+    }
+  ): Promise<string> {
+    try {
+      const result = await invoke<string>('update_expense', { 
+        expenseId, 
+        data 
+      })
+
+      // Invalidate cache after updating expense
+      const { dataCache } = await import('./dataCache')
+      dataCache.invalidateExpenses() // Invalidate all expenses since we don't know project ID
+      console.log(`[TAURI] Cache invalidated after updating expense ${expenseId}`)
+
+      return result
+    } catch (error) {
+      console.error(`Failed to update expense ${expenseId}:`, error)
+      throw new Error(`Failed to update expense ${expenseId}: ${error}`)
     }
   }
 
@@ -469,32 +604,45 @@ export class TauriService {
   }
 
   /**
-   * Handle common error scenarios with user-friendly messages
+   * Helper method to handle errors consistently
    */
   static handleError(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message
+    }
+
     if (typeof error === 'string') {
       return error
     }
     
-    if (error instanceof Error) {
-      return error.message
+    if (error && typeof error === 'object' && 'message' in error) {
+      const message = error.message
+      return typeof message === 'string' ? message : String(message)
     }
     
-    // Common error patterns from our CLI
-    const errorStr = String(error)
+    return 'An unknown error occurred'
+  }
+
+  // Quick update methods for better performance
+  static async updateProjectStatus(projectId: number, status: string): Promise<string> {
+    const result = await invoke('update_project_status', { projectId, status })
     
-    if (errorStr.includes('Python not found')) {
-      return 'Python is not installed or not found in PATH. Please install Python 3.11+ and try again.'
-    }
+    // Invalidate cache after updating project status
+    const { dataCache } = await import('./dataCache')
+    dataCache.invalidateProjects()
+    console.log(`[TAURI] Cache invalidated after updating project ${projectId} status`)
     
-    if (errorStr.includes('Database initialization failed')) {
-      return 'Failed to initialize database. Please check file permissions and try again.'
-    }
+    return result as string
+  }
+
+  static async updateProjectPriority(projectId: number, priority: string): Promise<string> {
+    const result = await invoke('update_project_priority', { projectId, priority })
     
-    if (errorStr.includes('No such command')) {
-      return 'Command not recognized. Please check the CLI implementation.'
-    }
+    // Invalidate cache after updating project priority
+    const { dataCache } = await import('./dataCache')
+    dataCache.invalidateProjects()
+    console.log(`[TAURI] Cache invalidated after updating project ${projectId} priority`)
     
-    return `An unexpected error occurred: ${errorStr}`
+    return result as string
   }
 } 

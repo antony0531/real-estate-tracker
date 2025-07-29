@@ -26,6 +26,16 @@ pub struct ProjectData {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct UpdateProjectData {
+    pub name: Option<String>,
+    pub budget: Option<f64>,
+    pub description: Option<String>,
+    pub floors: Option<u32>,
+    pub sqft: Option<f64>,
+    pub address: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RoomData {
     pub name: String,
     pub floor: u32,
@@ -155,29 +165,32 @@ pub async fn create_project(data: ProjectData) -> Result<String, String> {
 
 /// Update an existing project
 #[command]
-pub async fn update_project(project_id: u32, data: ProjectData) -> Result<String, String> {
+pub async fn update_project(project_id: u32, data: UpdateProjectData) -> Result<String, String> {
     info!("Updating project {}", project_id);
     
     let project_id_str = project_id.to_string();
     let mut args = vec!["project", "update", &project_id_str];
 
-    args.push("--name");
-    args.push(&data.name);
+    // Only add supported update parameters
+    if let Some(name) = &data.name {
+        args.push("--name");
+        args.push(name);
+    }
 
-    let budget_str = data.budget.to_string();
-    args.push("--budget");
-    args.push(&budget_str);
-
-    args.push("--property-type");
-    args.push(&data.property_type);
-
-    args.push("--property-class");
-    args.push(&data.property_class);
+    // Note: property_type and property_class are NOT supported by update command
+    // They can only be set during project creation
 
     // Collect optional string values first
     let mut temp_strings = Vec::new();
+    let mut budget_idx = None;
     let mut floor_idx = None;
     let mut sqft_idx = None;
+
+    if let Some(budget) = data.budget {
+        let budget_str = budget.to_string();
+        temp_strings.push(budget_str);
+        budget_idx = Some(temp_strings.len() - 1);
+    }
 
     if let Some(description) = &data.description {
         args.push("--description");
@@ -194,6 +207,12 @@ pub async fn update_project(project_id: u32, data: ProjectData) -> Result<String
         let sqft_str = sqft.to_string();
         temp_strings.push(sqft_str);
         sqft_idx = Some(temp_strings.len() - 1);
+    }
+
+    // Add the budget arguments if present
+    if let Some(idx) = budget_idx {
+        args.push("--budget");
+        args.push(&temp_strings[idx]);
     }
 
     // Add the floor arguments if present
@@ -441,6 +460,121 @@ pub async fn delete_expense(expense_id: u32) -> Result<String, String> {
     Ok(output)
 }
 
+/// Update a room
+#[command]
+pub async fn update_room(
+    project_id: u32, 
+    room_name: String, 
+    data: serde_json::Value
+) -> Result<String, String> {
+    info!("Updating room {} in project {}", room_name, project_id);
+    
+    let project_id_str = project_id.to_string();
+    // Collect all string arguments first to avoid borrowing conflicts
+    let mut string_args = Vec::new();
+    let mut arg_pairs = Vec::new(); // Store (flag, value_index) pairs
+    
+    if let Some(new_name) = data.get("name").and_then(|v| v.as_str()) {
+        string_args.push(new_name.to_string());
+        arg_pairs.push(("--name", string_args.len() - 1));
+    }
+    
+    if let Some(length) = data.get("length").and_then(|v| v.as_f64()) {
+        string_args.push(length.to_string());
+        arg_pairs.push(("--length", string_args.len() - 1));
+    }
+    
+    if let Some(width) = data.get("width").and_then(|v| v.as_f64()) {
+        string_args.push(width.to_string());
+        arg_pairs.push(("--width", string_args.len() - 1));
+    }
+    
+    if let Some(height) = data.get("height").and_then(|v| v.as_f64()) {
+        string_args.push(height.to_string());
+        arg_pairs.push(("--height", string_args.len() - 1));
+    }
+    
+    if let Some(condition) = data.get("condition").and_then(|v| v.as_i64()) {
+        string_args.push(condition.to_string());
+        arg_pairs.push(("--condition", string_args.len() - 1));
+    }
+    
+    if let Some(notes) = data.get("notes").and_then(|v| v.as_str()) {
+        string_args.push(notes.to_string());
+        arg_pairs.push(("--notes", string_args.len() - 1));
+    }
+
+    // Build the final args vector
+    let mut args = vec!["room", "update", &project_id_str, &room_name];
+    for (flag, value_index) in arg_pairs {
+        args.push(flag);
+        args.push(&string_args[value_index]);
+    }
+
+    let output = execute_python_command(args)
+        .await
+        .map_err(|e| format!("Failed to update room {}: {}", room_name, e))?;
+
+    Ok(output)
+}
+
+/// Update an expense
+#[command]
+pub async fn update_expense(
+    expense_id: u32, 
+    data: serde_json::Value
+) -> Result<String, String> {
+    info!("Updating expense {}", expense_id);
+    
+    let expense_id_str = expense_id.to_string();
+    // Collect all string arguments first to avoid borrowing conflicts
+    let mut string_args = Vec::new();
+    let mut arg_pairs = Vec::new(); // Store (flag, value_index) pairs
+    
+    if let Some(room_name) = data.get("room_name").and_then(|v| v.as_str()) {
+        string_args.push(room_name.to_string());
+        arg_pairs.push(("--room", string_args.len() - 1));
+    }
+    
+    if let Some(category) = data.get("category").and_then(|v| v.as_str()) {
+        string_args.push(category.to_string());
+        arg_pairs.push(("--category", string_args.len() - 1));
+    }
+    
+    if let Some(cost) = data.get("cost").and_then(|v| v.as_f64()) {
+        string_args.push(cost.to_string());
+        arg_pairs.push(("--cost", string_args.len() - 1));
+    }
+    
+    if let Some(hours) = data.get("hours").and_then(|v| v.as_f64()) {
+        string_args.push(hours.to_string());
+        arg_pairs.push(("--hours", string_args.len() - 1));
+    }
+    
+    if let Some(condition) = data.get("condition").and_then(|v| v.as_i64()) {
+        string_args.push(condition.to_string());
+        arg_pairs.push(("--condition", string_args.len() - 1));
+    }
+    
+    if let Some(notes) = data.get("notes").and_then(|v| v.as_str()) {
+        string_args.push(notes.to_string());
+        arg_pairs.push(("--notes", string_args.len() - 1));
+    }
+
+    // Build the final args vector
+    let mut args = vec!["expense", "update", &expense_id_str];
+    for (flag, value_index) in arg_pairs {
+        args.push(flag);
+        args.push(&string_args[value_index]);
+    }
+
+    let output = execute_python_command(args)
+        .await
+        .map_err(|e| format!("Failed to update expense {}: {}", expense_id, e))?;
+
+    Ok(output)
+}
+
 /// Get budget status for a project
 #[command]
 pub async fn get_budget_status(project_id: u32) -> Result<String, String> {
@@ -492,4 +626,36 @@ pub async fn test_expense_add() -> Result<String, String> {
 
     // Try to add to project 1 which we know exists
     add_expense(1, test_data).await
+} 
+
+/// Update project status quickly
+#[command]
+pub async fn update_project_status(project_id: u32, status: String) -> Result<String, String> {
+    let project_id_str = project_id.to_string();
+    let args = vec!["project", "update", &project_id_str, "--status", &status];
+    
+    execute_python_command(args)
+        .await
+        .map_err(|e| format!("Failed to update project status: {}", e))
+}
+
+/// Update project priority quickly  
+#[command]
+pub async fn update_project_priority(project_id: u32, priority: String) -> Result<String, String> {
+    let project_id_str = project_id.to_string();
+    let args = vec!["project", "update", &project_id_str, "--priority", &priority];
+    
+    execute_python_command(args)
+        .await
+        .map_err(|e| format!("Failed to update project priority: {}", e))
+} 
+
+/// Get all expenses across all projects
+#[command]
+pub async fn get_all_expenses() -> Result<String, String> {
+    let args = vec!["expense", "list", "--all"];
+    
+    execute_python_command(args)
+        .await
+        .map_err(|e| format!("Failed to get all expenses: {}", e))
 } 

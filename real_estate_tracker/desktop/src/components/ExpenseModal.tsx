@@ -1,10 +1,13 @@
-// ExpenseModal.tsx - Modal for adding/editing expenses with enhanced validation
-
-import { useState, useEffect } from 'react'
+// ExpenseModal.tsx - Enhanced expense creation with validation
+import React, { useState, useEffect } from 'react'
 import { toast } from 'sonner'
+import { X, Plus, AlertCircle } from 'lucide-react'
+
 import { TauriService } from '../services/tauri'
-import { useValidation, ValidationRules } from '../hooks/useValidation'
+import { useDebug } from '../contexts/DebugContext'
+import ScrollableSelect from './ui/ScrollableSelect'
 import ValidatedField from './ui/ValidatedField'
+import { useValidation } from '../hooks/useValidation'
 
 interface ExpenseModalProps {
   isOpen: boolean
@@ -43,6 +46,7 @@ export default function ExpenseModal({
   projects = [],
   expense 
 }: ExpenseModalProps) {
+  const { debugLog } = useDebug()
   const [formData, setFormData] = useState<ExpenseData>({
     projectId: projectId || (projects.length > 0 ? projects[0].id : 1),
     roomName: expense?.roomName || '',
@@ -71,7 +75,7 @@ export default function ExpenseModal({
   ]
 
   // Comprehensive validation rules
-  const validationRules: ValidationRules = {
+  const validationRules = {
     roomName: {
       required: true,
       minLength: 2,
@@ -184,13 +188,21 @@ export default function ExpenseModal({
   const loadRooms = async (currentProjectId: number) => {
     try {
       setIsLoadingRooms(true)
-      console.log('[ROOMS] Loading rooms for project:', currentProjectId)
+      // Clear existing rooms first to avoid showing stale data
+      setAvailableRooms([])
+      
+      debugLog('[EXPENSE-MODAL] 🏠 Loading rooms for project:', currentProjectId)
       const roomsOutput = await TauriService.getRooms(currentProjectId)
-      console.log('[ROOMS] Raw rooms output:', roomsOutput)
+      debugLog('[EXPENSE-MODAL] 📄 Raw rooms output:', roomsOutput)
       
       const rooms = parseRoomsFromOutput(roomsOutput)
+      debugLog('[EXPENSE-MODAL] 🔍 Parsed rooms:', rooms)
+      
+      if (rooms.length === 0) {
+        debugLog('[EXPENSE-MODAL] ⚠️ No rooms found for project', currentProjectId)
+      }
+      
       setAvailableRooms(rooms)
-      console.log('[ROOMS] Parsed rooms:', rooms)
       
       // If no rooms exist, automatically enable custom room input
       if (rooms.length === 0) {
@@ -198,16 +210,20 @@ export default function ExpenseModal({
         toast.info('No rooms found in this project. You can add a room name below.')
       } else {
         setUseCustomRoom(false)
+        debugLog('[EXPENSE-MODAL] ✅ Loaded ' + rooms.length + ' rooms successfully')
+        
         // If editing an expense, check if the room exists in available rooms
         if (expense?.roomName && !rooms.find(r => r.name === expense.roomName)) {
+          debugLog('[EXPENSE-MODAL] 🔄 Expense room not found in current rooms, enabling custom input')
           setUseCustomRoom(true)
         } else if (!expense && !formData.roomName && rooms.length > 0) {
           // Auto-select first room for new expense if no room is selected
+          debugLog('[EXPENSE-MODAL] 🎯 Auto-selecting first room: ' + rooms[0].name)
           setFormData(prev => ({ ...prev, roomName: rooms[0].name }))
         }
       }
     } catch (error) {
-      console.error('[ROOMS] Failed to load rooms:', error)
+      debugLog('[EXPENSE-MODAL] ❌ Failed to load rooms for project ' + currentProjectId + ': ' + error)
       toast.error('Failed to load rooms. You can still enter a room name manually.')
       setAvailableRooms([])
       setUseCustomRoom(true)
@@ -273,12 +289,16 @@ export default function ExpenseModal({
           
           if (createRoom) {
             try {
-              await TauriService.addRoom({
-                projectId: formData.projectId,
-                name: formData.roomName,
-                floor: 1,
-                condition: 3
-              })
+              await TauriService.addRoom(
+                formData.projectId,
+                formData.roomName,
+                1, // floor
+                undefined, // length
+                undefined, // width
+                undefined, // height
+                3, // condition
+                undefined // notes
+              )
               toast.success(`Created room "${formData.roomName}" on Floor 1`)
               // Reload rooms to include the new one
               await loadRooms(formData.projectId)
@@ -306,7 +326,9 @@ export default function ExpenseModal({
         toast.info('Expense editing coming soon!')
       } else {
         // Create new expense
-        await TauriService.addExpense(formData)
+        console.log('[EXPENSE-MODAL] Submitting expense:', formData)
+        const result = await TauriService.addExpense(formData)
+        console.log('[EXPENSE-MODAL] Expense added, result:', result)
         
         // Show success message with budget warning if applicable
         if (budgetWarning || (formData.cost > remainingBudget && remainingBudget > 0)) {
@@ -318,7 +340,9 @@ export default function ExpenseModal({
           toast.success('Expense added successfully!')
         }
         
-        onSuccess()
+        // Call onSuccess to refresh parent components
+        console.log('[EXPENSE-MODAL] Calling onSuccess callback to refresh dashboard')
+        await onSuccess()
         onClose()
         
         // Reset form and validation
@@ -333,18 +357,22 @@ export default function ExpenseModal({
         })
         clearAllValidation()
         setBudgetWarning('')
+
+        // Force refresh all views by invalidating caches
+        console.log('[EXPENSE-MODAL] Invalidating all caches')
+        const { dataCache } = await import('../services/dataCache')
+        dataCache.invalidateExpenses()
+        dataCache.invalidateDashboardStats()
+        dataCache.invalidateProjects()
+        console.log('[EXPENSE-MODAL] Caches invalidated, data should refresh')
       }
     } catch (error) {
+      console.error('[EXPENSE-MODAL] Error adding expense:', error)
       const errorMessage = TauriService.handleError(error)
       
       // Check for specific room not found error
       if (errorMessage.includes("not found in project")) {
-        toast.error(
-          `Room "${formData.roomName}" doesn't exist in this project.\n\n` +
-          `Available rooms: ${availableRooms.map(r => r.name).join(', ')}\n\n` +
-          `Click "Enter new room name" above to add a new room, or select an existing one.`,
-          { duration: 8000 }
-        )
+        toast.error(`Room "${formData.roomName}" not found in this project. Please select a valid room.`)
       } else {
         toast.error(`Failed to add expense: ${errorMessage}`)
       }
@@ -455,68 +483,79 @@ export default function ExpenseModal({
         {/* Modal Content */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Project Selection */}
-          {showProjectSelection ? (
-            <div>
-              <label htmlFor="projectId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Select Project *
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Project *
               </label>
-              <select
-                id="projectId"
-                name="projectId"
-                value={formData.projectId}
-                onChange={handleInputChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
-              >
-                {projects.length === 0 && (
-                  <option value="">No projects available</option>
-                )}
-                {projects.map(project => (
-                  <option key={project.id} value={project.id}>
-                    #{project.id} - {project.name}
-                  </option>
-                ))}
-              </select>
-              {projects.length === 0 && (
-                <p className="text-xs text-red-500 mt-1">
-                  Please create a project first before adding expenses.
-                </p>
-              )}
-            </div>
-          ) : (
-            /* Project Info */
-            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
-              <p className="text-sm text-blue-800 dark:text-blue-200">
-                Adding expense to: <span className="font-medium">
-                  {projectName || selectedProject?.name || `Project #${formData.projectId}`}
-                </span>
-              </p>
-            </div>
-          )}
-
-          {/* Room Name with Enhanced UI */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label htmlFor="roomName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Room Name *
-              </label>
-              {availableRooms.length > 0 && (
+              {projects.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setUseCustomRoom(!useCustomRoom)}
-                  className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                  onClick={() => window.location.reload()}
+                  className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1"
                 >
-                  {useCustomRoom ? 'Choose from existing rooms' : 'Enter new room name'}
+                  🔄 Refresh Projects
                 </button>
               )}
             </div>
             
-            {isLoadingRooms ? (
-              <div className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Loading rooms...</span>
+                          <ScrollableSelect
+                label=""
+                value={formData.projectId.toString()}
+                onChange={(value) => {
+                  const projectId = parseInt(value, 10)
+                  setFormData(prev => ({ ...prev, projectId }))
+                  handleFieldChange('projectId', projectId, { ...formData, projectId })
+                  loadRooms(Number(value))
+                }}
+                options={projects.map(project => ({ 
+                  value: project.id.toString(), 
+                  label: `#${project.id} - ${project.name}`,
+                  description: `Project ID: ${project.id}`
+                }))}
+                placeholder="Select a project"
+                disabled={projects.length === 0}
+                required
+                searchable={true}
+                maxHeight="300px"
+              />
+          </div>
+
+          {/* Room Name with Enhanced UI */}
+          <div>
+            {/* Room Selection */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label htmlFor="roomName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Room *
+                </label>
+                {availableRooms.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => loadRooms(formData.projectId)}
+                    disabled={isLoadingRooms}
+                    className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  >
+                    {isLoadingRooms ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-600"></div>
+                        Refreshing...
+                      </>
+                    ) : (
+                      <>
+                        🔄 Refresh Rooms
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
-            ) : useCustomRoom ? (
+              
+              {isLoadingRooms ? (
+                <div className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Loading rooms...</span>
+                </div>
+              ) : useCustomRoom ? (
               <div>
                 <ValidatedField
                   label=""
@@ -570,22 +609,25 @@ export default function ExpenseModal({
               </div>
             ) : (
               <div>
-                <select
-                  id="roomName"
-                  name="roomName"
+                <ScrollableSelect
+                  label="Room *"
                   value={formData.roomName}
-                  onChange={handleInputChange}
-                  onBlur={handleInputBlur}
+                  onChange={(value) => {
+                    setFormData(prev => ({ ...prev, roomName: value }))
+                    handleFieldChange('roomName', value)
+                  }}
+                  options={availableRooms.map(room => ({ 
+                    value: room.name, 
+                    label: room.name,
+                    description: `Floor ${room.floor}, Condition: ${room.condition || 'N/A'}`
+                  }))}
+                  placeholder="Select a room..."
+                  disabled={availableRooms.length === 0}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
-                >
-                  <option value="">Select a room...</option>
-                  {availableRooms.map(room => (
-                    <option key={room.name} value={room.name}>
-                      {room.name} (Floor {room.floor}, Condition: {room.condition || 'N/A'})
-                    </option>
-                  ))}
-                </select>
+                  searchable={true}
+                  maxHeight="250px"
+                  error={validationState.roomName?.error}
+                />
                 
                 {/* Validation Error for Dropdown */}
                 {validationState.roomName?.error && (
@@ -606,6 +648,7 @@ export default function ExpenseModal({
                 No rooms found in this project. Click "Enter new room name" to add an expense to a new room.
               </p>
             )}
+          </div>
           </div>
 
           {/* Category */}

@@ -20,7 +20,7 @@ from ..utils import (
     validate_project_id,
 )
 from ...database import db_manager
-from ...models import PropertyType, PropertyClass, ProjectStatus
+from ...models import PropertyType, PropertyClass, ProjectStatus, Priority
 from ...projects import ProjectManager, ExpenseManager
 
 console = Console()
@@ -48,6 +48,9 @@ def create_project(
     address: Optional[str] = typer.Option(
         None, "--address", "-a", help="Property address"
     ),
+    priority: Optional[str] = typer.Option(
+        None, "--priority", "-p", help="Project priority (low, medium, high, urgent)"
+    ),
 ):
     """Create a new renovation project"""
 
@@ -65,6 +68,15 @@ def create_project(
         )
         raise typer.Exit(1)
 
+    # Validate priority if provided
+    if priority is not None:
+        valid_priorities = [p.value for p in Priority]
+        if priority not in valid_priorities:
+            error_message(
+                f"Invalid priority. Choose from: {', '.join(valid_priorities)}"
+            )
+            raise typer.Exit(1)
+
     session = db_manager.get_session()
     try:
         manager = ProjectManager(session)
@@ -77,6 +89,7 @@ def create_project(
             num_floors=floors,
             total_sqft=sqft,
             address=address,
+            priority=priority,
         )
 
         success_message(f"Created project: {project.name} (ID: {project.id})")
@@ -109,38 +122,20 @@ def list_projects():
         projects = manager.list_projects()
 
         if not projects:
-            rprint("No projects found. Create your first project:")
-            rprint(
-                "   [cyan]real-estate-tracker project create 'My First Flip' 150000 single_family sf_class_c[/cyan]"
-            )
+            print("No projects found")
             return
 
-        table = Table(title="Your Real Estate Projects")
-        table.add_column("ID", style="cyan", width=6)
-        table.add_column("Name", style="bold")
-        table.add_column("Status", style="yellow")
-        table.add_column("Budget", style="green", justify="right")
-        table.add_column("Type", style="blue")
-        table.add_column("Created", style="dim")
+        # Print table header
+        print("┌──────┬────────────┬──────────┬──────────┬────────────┬──────────┬────────────┐")
+        print("│ ID   │ Name       │ Status   │ Priority │ Budget     │ Type     │ Created    │")
+        print("├──────┼────────────┼──────────┼──────────┼────────────┼──────────┼────────────┤")
 
+        # Print projects
         for project in projects:
-            status_color = {
-                ProjectStatus.PLANNING: "yellow",
-                ProjectStatus.IN_PROGRESS: "blue",
-                ProjectStatus.COMPLETED: "green",
-                ProjectStatus.ON_HOLD: "red",
-            }.get(project.status, "white")
+            print(f"│ {project.id:<4} │ {project.name:<10} │ {project.status.value:<8} │ {project.priority.value:<8} │ ${project.total_budget:<9,.0f} │ {project.property_type.value:<8} │ {project.created_at.strftime('%Y-%m-%d')} │")
 
-            table.add_row(
-                str(project.id),
-                project.name,
-                f"[{status_color}]{project.status.value.replace('_', ' ').title()}[/{status_color}]",
-                f"${project.total_budget:,.0f}",
-                project.property_type.value.replace("_", " ").title(),
-                project.created_at.strftime("%Y-%m-%d"),
-            )
-
-        console.print(table)
+        # Print table footer
+        print("└──────┴────────────┴──────────┴──────────┴────────────┴──────────┴────────────┘")
 
     except Exception as e:
         error_message(f"Error listing projects: {e}")
@@ -165,80 +160,16 @@ def show_project(project_id: int = typer.Argument(..., help="Project ID")):
             error_message(f"Project {project_id} not found")
             raise typer.Exit(1)
 
-        # Get financial summary
-        summary = expense_manager.get_project_summary(project_id)
+        # Print table header
+        print("┌──────┬────────────┬──────────┬──────────┬────────────┬──────────┬────────────┐")
+        print("│ ID   │ Name       │ Status   │ Priority │ Budget     │ Type     │ Created    │")
+        print("├──────┼────────────┼──────────┼──────────┼────────────┼──────────┼────────────┤")
 
-        # Project header
-        rprint(
-            Panel(
-                f"[bold cyan]{project.name}[/bold cyan]\n"
-                f"Status: [yellow]{project.status.value.replace('_', ' ').title()}[/yellow]\n"
-                f"Type: {project.property_type.value.replace('_', ' ').title()} - {project.property_class.value.upper()}\n"
-                f"Created: {project.created_at.strftime('%Y-%m-%d')}",
-                title="Project Details",
-            )
-        )
+        # Print project
+        print(f"│ {project.id:<4} │ {project.name:<10} │ {project.status.value:<8} │ {project.priority.value:<8} │ ${project.total_budget:<9,.0f} │ {project.property_type.value:<8} │ {project.created_at.strftime('%Y-%m-%d')} │")
 
-        # Financial summary
-        if summary and summary.get("expense_count", 0) > 0:
-            budget_color = "red" if summary["over_budget"] else "green"
-            remaining_color = "red" if summary["remaining_budget"] < 0 else "green"
-
-            rprint(
-                Panel(
-                    f"Total Budget: [cyan]{format_currency(summary['total_budget'])}[/cyan]\n"
-                    f"Total Spent: [{budget_color}]{format_currency(summary['total_spent'])}[/{budget_color}]\n"
-                    f"Remaining: [{remaining_color}]{format_currency(summary['remaining_budget'])}[/{remaining_color}]\n"
-                    f"Budget Used: [{budget_color}]{summary['budget_used_pct']:.1f}%[/{budget_color}]\n"
-                    f"Materials: {format_currency(summary['material_costs'])}\n"
-                    f"Labor: {format_currency(summary['labor_costs'])} ({summary['total_labor_hours']:.1f} hrs)"
-                    + (
-                        f"\nCost/sq ft: {format_currency(summary['cost_per_sqft'])}"
-                        if summary.get("cost_per_sqft")
-                        else ""
-                    ),
-                    title="Financial Summary",
-                )
-            )
-        else:
-            rprint(
-                Panel(
-                    f"Total Budget: [cyan]{format_currency(project.total_budget)}[/cyan]\n"
-                    f"Total Spent: [green]$0.00[/green]\n"
-                    f"Remaining: [green]{format_currency(project.total_budget)}[/green]\n"
-                    f"Budget Used: [green]0.0%[/green]",
-                    title="Financial Summary",
-                )
-            )
-
-        # Show rooms if any exist
-        rooms = manager.list_rooms(project_id)
-        if rooms:
-            room_table = Table(title="Rooms")
-            room_table.add_column("Name", style="cyan")
-            room_table.add_column("Floor", style="yellow", justify="center")
-            room_table.add_column("Size", style="green", justify="right")
-            room_table.add_column("Condition", style="blue", justify="center")
-
-            for room in rooms:
-                size = (
-                    f"{room.square_footage:.0f} sq ft"
-                    if room.square_footage
-                    else "Not set"
-                )
-                room_table.add_row(
-                    room.name,
-                    str(room.floor_number),
-                    size,
-                    f"{room.initial_condition}/5",
-                )
-
-            console.print(room_table)
-        else:
-            rprint("\nNo rooms added yet. Add your first room:")
-            rprint(
-                f"   [cyan]real-estate-tracker room add {project_id} 'Living Room' 1 --length 20 --width 15[/cyan]"
-            )
+        # Print table footer
+        print("└──────┴────────────┴──────────┴──────────┴────────────┴──────────┴────────────┘")
 
     except Exception as e:
         error_message(f"Error showing project: {e}")
@@ -251,19 +182,29 @@ def show_project(project_id: int = typer.Argument(..., help="Project ID")):
 def update_project(
     project_id: int = typer.Argument(..., help="Project ID to update"),
     name: Optional[str] = typer.Option(None, "--name", "-n", help="New project name"),
-    budget: Optional[float] = typer.Option(
-        None, "--budget", "-b", help="New budget amount"
-    ),
+    budget: Optional[float] = typer.Option(None, "--budget", "-b", help="New budget"),
     description: Optional[str] = typer.Option(
         None, "--description", "-d", help="New description"
     ),
+    floors: Optional[int] = typer.Option(
+        None, "--floors", "-f", help="New number of floors"
+    ),
+    sqft: Optional[float] = typer.Option(
+        None, "--sqft", "-s", help="New square footage"
+    ),
+    address: Optional[str] = typer.Option(None, "--address", "-a", help="New address"),
     status: Optional[str] = typer.Option(
         None,
         "--status",
-        "-s",
+        "-st",
         help="New status (planning, in_progress, completed, on_hold)",
     ),
-    address: Optional[str] = typer.Option(None, "--address", "-a", help="New address"),
+    priority: Optional[str] = typer.Option(
+        None,
+        "--priority",
+        "-p",
+        help="New priority (low, medium, high, urgent)",
+    ),
 ):
     """Update project details"""
     if not validate_project_id(project_id):
@@ -310,6 +251,17 @@ def update_project(
             old_status = project.status.value
             project.status = ProjectStatus(status)
             updates.append(f"Status: {old_status} -> {status}")
+
+        if priority is not None:
+            valid_priorities = [p.value for p in Priority]
+            if priority not in valid_priorities:
+                error_message(
+                    f"Invalid priority. Choose from: {', '.join(valid_priorities)}"
+                )
+                raise typer.Exit(1)
+            old_priority = project.priority.value
+            project.priority = Priority(priority)
+            updates.append(f"Priority: {old_priority} -> {priority}")
 
         if address is not None:
             project.address = address

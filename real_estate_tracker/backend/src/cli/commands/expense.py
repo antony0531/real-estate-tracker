@@ -128,78 +128,151 @@ def list_expenses(
             expenses = [e for e in expenses if e.category.value == category]
 
         if not expenses:
-            filter_text = ""
-            if room_name:
-                filter_text += f" in room '{room_name}'"
-            if category:
-                filter_text += f" for {category}"
-            rprint(
-                f"No expenses found for project: [cyan]{project.name}[/cyan]{filter_text}"
-            )
+            print("No expenses found")
             return
 
-        # Calculate totals
-        total_cost = sum(e.cost for e in expenses)
-        total_hours = sum(e.labor_hours for e in expenses if e.labor_hours)
+        # Print table header
+        print("┌──────┬────────────┬────────────┬──────────┬────────────┬─────────────┐")
+        print("│ ID   │ Date       │ Room       │ Category │ Cost       │ Notes       │")
+        print("├──────┼────────────┼────────────┼──────────┼────────────┼─────────────┤")
 
-        filter_info = ""
-        if room_name or category:
-            filters = []
-            if room_name:
-                filters.append(f"Room: {room_name}")
-            if category:
-                filters.append(f"Category: {category}")
-            filter_info = f" ({', '.join(filters)})"
-
-        rprint(f"[cyan]Expenses for Project: {project.name}[/cyan]{filter_info}\n")
-
-        table = Table(title="Expense Details")
-        table.add_column("Date", style="dim", width=10)
-        table.add_column("Room", style="cyan", width=12)
-        table.add_column("Category", style="yellow", width=10)
-        table.add_column("Cost", style="green", justify="right", width=12)
-        table.add_column("Hours", style="blue", justify="right", width=8)
-        table.add_column("Notes", style="dim", no_wrap=False)
-
+        # Print expenses
         for expense in sorted(expenses, key=lambda x: x.created_at, reverse=True):
-            notes = (
-                expense.notes[:40] + "..."
-                if expense.notes and len(expense.notes) > 40
-                else (expense.notes or "")
-            )
-            hours_text = (
-                f"{expense.labor_hours:.1f}" if expense.labor_hours > 0 else "-"
-            )
+            notes = (expense.notes[:40] + "...") if expense.notes and len(expense.notes) > 40 else (expense.notes or "")
+            print(f"│ {expense.id:<4} │ {expense.created_at.strftime('%Y-%m-%d')} │ {expense.room.name:<10} │ {expense.category.value:<8} │ ${expense.cost:<9,.2f} │ {notes:<11} │")
 
-            table.add_row(
-                expense.created_at.strftime("%Y-%m-%d"),
-                expense.room.name,
-                expense.category.value.title(),
-                format_currency(expense.cost),
-                hours_text,
-                notes,
-            )
-
-        console.print(table)
-
-        # Summary
-        rprint(
-            f"\n[bold]Total Cost:[/bold] [green]{format_currency(total_cost)}[/green]"
-        )
-        if total_hours > 0:
-            rprint(f"[bold]Total Hours:[/bold] [blue]{total_hours:.1f}[/blue]")
-            avg_hourly = (
-                (sum(e.cost for e in expenses if e.labor_hours > 0) / total_hours)
-                if total_hours > 0
-                else 0
-            )
-            if avg_hourly > 0:
-                rprint(
-                    f"[bold]Average Hourly:[/bold] [yellow]{format_currency(avg_hourly)}/hr[/yellow]"
-                )
+        # Print table footer
+        print("└──────┴────────────┴────────────┴──────────┴────────────┴─────────────┘")
 
     except Exception as e:
         error_message(f"Error listing expenses: {e}")
+        raise typer.Exit(1)
+    finally:
+        session.close()
+
+
+@app.command("update")
+def update_expense(
+    expense_id: int = typer.Argument(..., help="Expense ID to update"),
+    room_name: Optional[str] = typer.Option(None, "--room", "-r", help="New room name"),
+    category: Optional[str] = typer.Option(
+        None, "--category", "-c", help="New expense category (material or labor)"
+    ),
+    cost: Optional[float] = typer.Option(None, "--cost", help="New cost amount"),
+    hours: Optional[float] = typer.Option(
+        None, "--hours", "-h", help="New labor hours"
+    ),
+    condition: Optional[int] = typer.Option(
+        None, "--condition", help="New room condition after work (1-5 scale)"
+    ),
+    notes: Optional[str] = typer.Option(
+        None, "--notes", "-n", help="New expense notes"
+    ),
+):
+    """Update an existing expense"""
+    session = db_manager.get_session()
+    try:
+        from ...models import Expense
+
+        expense = session.query(Expense).filter_by(id=expense_id).first()
+        if not expense:
+            error_message(f"Expense {expense_id} not found")
+            raise typer.Exit(1)
+
+        # Validate inputs
+        if category is not None:
+            valid_categories = [c.value for c in ExpenseCategory]
+            if category not in valid_categories:
+                error_message(
+                    f"Invalid category. Choose from: {', '.join(valid_categories)}"
+                )
+                raise typer.Exit(1)
+
+        if condition is not None and (condition < 1 or condition > 5):
+            error_message("Condition must be between 1-5")
+            raise typer.Exit(1)
+
+        if cost is not None and cost < 0:
+            error_message("Cost cannot be negative")
+            raise typer.Exit(1)
+
+        if hours is not None and hours < 0:
+            error_message("Hours cannot be negative")
+            raise typer.Exit(1)
+
+        # Check if any updates were provided
+        if not any(
+            [
+                room_name,
+                category,
+                cost is not None,
+                hours is not None,
+                condition is not None,
+                notes is not None,
+            ]
+        ):
+            error_message("No updates provided. Use --help to see available options.")
+            raise typer.Exit(1)
+
+        # Update fields
+        updated_fields = []
+
+        if room_name:
+            # Find the new room
+            project = expense.project
+            new_room = None
+            for r in project.rooms:
+                if r.name.lower() == room_name.lower():
+                    new_room = r
+                    break
+
+            if not new_room:
+                error_message(f"Room '{room_name}' not found in project {project.name}")
+                raise typer.Exit(1)
+
+            old_room_name = expense.room.name
+            expense.room = new_room
+            updated_fields.append(f"room: {old_room_name} → {room_name}")
+
+        if category:
+            old_category = expense.category.value
+            expense.category = ExpenseCategory(category)
+            updated_fields.append(f"category: {old_category} → {category}")
+
+        if cost is not None:
+            old_cost = expense.cost
+            expense.cost = cost
+            updated_fields.append(
+                f"cost: {format_currency(old_cost)} → {format_currency(cost)}"
+            )
+
+        if hours is not None:
+            old_hours = expense.labor_hours
+            expense.labor_hours = hours
+            updated_fields.append(f"hours: {old_hours:.1f} → {hours:.1f}")
+
+        if condition is not None:
+            old_condition = expense.room_condition_after
+            expense.room_condition_after = condition
+            updated_fields.append(f"condition: {old_condition}/5 → {condition}/5")
+
+        if notes is not None:
+            expense.notes = notes
+            updated_fields.append(f"notes: updated")
+
+        # Update timestamp
+        from datetime import datetime
+
+        expense.updated_at = datetime.utcnow()
+
+        session.commit()
+        success_message(f"Successfully updated expense #{expense_id}")
+        rprint(f"Updated: {', '.join(updated_fields)}")
+        rprint(f"New total: {format_currency(expense.cost)} in {expense.room.name}")
+
+    except Exception as e:
+        session.rollback()
+        error_message(f"Error updating expense: {e}")
         raise typer.Exit(1)
     finally:
         session.close()

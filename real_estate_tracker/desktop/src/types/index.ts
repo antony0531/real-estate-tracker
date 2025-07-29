@@ -10,10 +10,7 @@ export * from './tauri'
 export interface AppInfo {
   name: string
   version: string
-  author: string
   description: string
-  databasePath: string
-  exportsPath: string
 }
 
 // User interface types

@@ -1,13 +1,48 @@
-// Dashboard.tsx - Main dashboard page with overview and quick actions
-
-import { useState, useEffect } from 'react'
+// Dashboard.tsx - Modern real estate portfolio dashboard
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { invoke } from '@tauri-apps/api/tauri'
-
-import { TauriService, type AppInfo, type PythonInfo } from '../services/tauri'
-import ProjectModal from '../components/ProjectModal'
+import { TauriService } from '../services/tauri'
+import { dataCache } from '../services/dataCache'
 import ExpenseModal from '../components/ExpenseModal'
+import { RefreshCw, Building2, TrendingUp, DollarSign, Wallet } from 'lucide-react'
+
+// Utility function to format large numbers in a readable way
+const formatLargeNumber = (amount: number): string => {
+  if (amount >= 1000000) {
+    const millions = amount / 1000000
+    return millions >= 10 ? `$${millions.toFixed(0)}M` : `$${millions.toFixed(1)}M`
+  } else if (amount >= 100000) {
+    return `$${(amount / 1000).toFixed(0)}K`
+  } else if (amount >= 10000) {
+    return `$${(amount / 1000).toFixed(1)}K`
+  } else if (amount >= 1000) {
+    return `$${(amount / 1000).toFixed(1)}K`
+  } else {
+    return `$${amount.toLocaleString()}`
+  }
+}
+
+// Utility function for smaller display amounts (without dollar sign)
+const formatCompactNumber = (amount: number): string => {
+  if (amount >= 1000000) {
+    const millions = amount / 1000000
+    return millions >= 10 ? `${millions.toFixed(0)}M` : `${millions.toFixed(1)}M`
+  } else if (amount >= 100000) {
+    return `${(amount / 1000).toFixed(0)}K`
+  } else if (amount >= 10000) {
+    return `${(amount / 1000).toFixed(1)}K`
+  } else if (amount >= 1000) {
+    return `${(amount / 1000).toFixed(1)}K`
+  } else {
+    return amount.toLocaleString()
+  }
+}
+
+// Utility function for percentage formatting
+const formatPercentage = (value: number): string => {
+  return value >= 10 ? value.toFixed(0) : value.toFixed(1)
+}
 
 interface DashboardStats {
   projectCount: number
@@ -16,661 +51,571 @@ interface DashboardStats {
   isLoading: boolean
 }
 
-interface DebugInfo {
-  current_dir: string
-  backend_dir: string
-  backend_dir_exists: boolean
-  venv_python_path: string
-  venv_python_exists: boolean
-  found_python_path?: string
-}
-
 export default function Dashboard() {
-  const [appInfo, setAppInfo] = useState<AppInfo | null>(null)
-  const [pythonInfo, setPythonInfo] = useState<PythonInfo | null>(null) 
-  const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'testing' | 'connected' | 'error'>('disconnected')
   const [stats, setStats] = useState<DashboardStats>({
     projectCount: 0,
     totalBudget: 0,
     totalSpent: 0,
-    isLoading: false
+    isLoading: true
   })
-  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false)
+  const [projects, setProjects] = useState<{ id: number; name: string; budget: number }[]>([])
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false)
-  const [projects, setProjects] = useState<Array<{id: number, name: string}>>([])
   const navigate = useNavigate()
 
-  // Debug states
-  const [debugOutput, setDebugOutput] = useState<string>('')
-  const [testOutput, setTestOutput] = useState<string>('')
-
-  // Test connection and load initial data
   useEffect(() => {
     loadDashboardData()
+
+    // Refresh data every 30 seconds instead of 5
+    const refreshInterval = setInterval(() => {
+      // Only refresh if the component is mounted and visible
+      if (document.visibilityState === 'visible') {
+        loadDashboardData()
+      }
+    }, 30000)
+
+    return () => clearInterval(refreshInterval)
   }, [])
 
-  const loadDashboardData = async () => {
-    try {
-      setConnectionStatus('testing')
-      setStats(prev => ({ ...prev, isLoading: true }))
-
-      // Test connection first
-      console.log('Testing Tauri IPC connection...')
-      
-      // Get app info
-      const appData = await TauriService.getAppInfo()
-      setAppInfo(appData)
-      console.log('App info loaded:', appData)
-
-      // Check Python installation  
-      const pythonData = await TauriService.checkPythonInstallation()
-      setPythonInfo(pythonData)
-      console.log('Python info loaded:', pythonData)
-
-      // Initialize database if needed
-      try {
-        await TauriService.initializeDatabase()
-        console.log('Database initialized')
-      } catch (dbError) {
-        console.warn('Database already initialized or error:', dbError)
-        // Don't treat as fatal error
+  // Add visibility change listener
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadDashboardData()
       }
-
-      // Get projects data with detailed logging
-      console.log('[LOADING] Fetching projects data...')
-      const projectsOutput = await TauriService.getProjects()
-      console.log('[DATA] Raw projects output:', projectsOutput)
-      console.log('[DATA] Projects output length:', projectsOutput.length)
-      console.log('[DATA] First few lines:', projectsOutput.split('\n').slice(0, 5))
-      
-      // Parse project count and budget from CLI output  
-      const { count: projectCount, totalBudget } = parseProjectData(projectsOutput)
-      console.log('[SUCCESS] Parsed project data:', { projectCount, totalBudget })
-
-      // Parse and set projects list for expense modal
-      const projectsList = parseProjectsList(projectsOutput)
-      setProjects(projectsList)
-      console.log('[LIST] Projects list for modal:', projectsList)
-
-      // Calculate total spent across all projects
-      console.log('[LOADING] Calculating total spent across all projects...')
-      let totalSpent = 0
-      try {
-        const allExpensesOutput = await TauriService.getAllExpenses()
-        totalSpent = calculateTotalExpensesFromOutput(allExpensesOutput)
-        console.log('[EXPENSE] Total spent calculated:', totalSpent)
-      } catch (expenseError) {
-        console.warn('Could not calculate total expenses:', expenseError)
-        totalSpent = 0 // Fallback to 0 if expense calculation fails
-      }
-
-      setStats({
-        projectCount,
-        totalBudget,
-        totalSpent,
-        isLoading: false
-      })
-
-      setConnectionStatus('connected')
-      toast.success(`Connected! Found ${projectCount} projects with $${totalBudget.toLocaleString()} total budget`)
-
-    } catch (error) {
-      console.error('Dashboard data loading failed:', error)
-      setConnectionStatus('error')
-      setStats(prev => ({ ...prev, isLoading: false }))
-      toast.error(`Connection failed: ${TauriService.handleError(error)}`)
     }
-  }
 
-  const handleDebugPaths = async () => {
-    try {
-      console.log('Running Python paths debug...')
-      const debug = await invoke<DebugInfo>('debug_python_paths')
-      setDebugOutput(JSON.stringify(debug, null, 2))
-      console.log('Debug info:', debug)
-      toast.success('Debug info loaded - check console')
-    } catch (error) {
-      console.error('Debug failed:', error)
-      toast.error(`Debug failed: ${TauriService.handleError(error)}`)
-    }
-  }
-
-  const handleTestExecution = async () => {
-    try {
-      console.log('Testing Python execution...')
-      const result = await invoke<string>('test_python_execution')
-      setTestOutput(result)
-      console.log('Python execution test result:', result)
-      toast.success('Python test completed - check console')
-      alert(`Python Test Results:\n\n${result}`)
-    } catch (error) {
-      console.error('Python test failed:', error)
-      toast.error(`Python test failed: ${TauriService.handleError(error)}`)
-    }
-  }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [])
 
   const parseProjectData = (output: string): { count: number; totalBudget: number } => {
-    // Parse CLI table output to extract project data
-    console.log('[PARSE] RAW OUTPUT LENGTH:', output.length)
-    console.log('[PARSE] RAW OUTPUT (first 500 chars):', JSON.stringify(output.substring(0, 500)))
+    console.log('[PROJECT] Starting to parse project data from output:', output.length)
     
     const lines = output.trim().split('\n')
     let projectCount = 0
     let totalBudget = 0
-    
-    console.log('[TABLE] Total lines to process:', lines.length)
-    console.log('[TABLE] First 10 lines for inspection:')
-    lines.slice(0, 10).forEach((line, idx) => {
-      console.log(`  Line ${idx}: ${JSON.stringify(line)}`)
-    })
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]
-      
-      // Skip obvious header/separator lines
-      const isHeaderLine = line.includes('━') || 
-          line.includes('Real Estate Projects') || 
-          line.includes('┏') || 
-          line.includes('┗') || 
-          line.includes('┃ ID') ||
-          line.includes('┡') ||
-          line.includes('└') ||
-          !line.trim()
-          
-      if (isHeaderLine) {
-        console.log(`[SKIP] Skipping header line ${i}: ${JSON.stringify(line.substring(0, 50))}`)
-        continue
-      }
-      
-      // Look for data lines - they should start with │ and have project data
-      const startsWithPipe = line.startsWith('│')
-      const containsDollar = line.includes('$')
-      
-      console.log(`[ANALYZE] Line ${i} analysis: starts with pipe? ${startsWithPipe}, contains $? ${containsDollar}`)
-      console.log(`    Content: ${JSON.stringify(line.substring(0, 100))}`)
-      
-      if (startsWithPipe && containsDollar) {
-        console.log(`[PROCESS] Processing project line ${i}: "${line}"`)
+
+    for (const line of lines) {
+      if (line.startsWith('│') && !line.startsWith('┃')) {
+        // This is a data row
+        const columns = line.split('│').map(col => col.trim()).filter(col => col)
         
-        // Split the line by │ and clean up columns
-        const rawColumns = line.split('│')
-        const columns = rawColumns.map(col => col.trim()).filter(col => col)
-        console.log(`[COLUMNS] Raw columns (${rawColumns.length}):`, rawColumns)
-        console.log(`[COLUMNS] Cleaned columns (${columns.length}):`, columns)
-        
-        // Column structure: [ID, Name, Status, Budget, Type, Created]
-        if (columns.length >= 4) {
-          const budgetColumn = columns[3] // 4th column (0-indexed)
-          console.log(`[BUDGET] Budget column [3]: "${budgetColumn}"`)
+        // New format: ID, Name, Status, Priority, Budget, Type, Created
+        if (columns.length >= 5) {
+          const budgetColumn = columns[4] // 5th column (0-indexed) - Budget is now here
           
-          // Extract budget value from the budget column
-          const budgetMatch = budgetColumn.match(/\$([0-9,]+)/);
-          console.log(`[BUDGET] Budget match result:`, budgetMatch)
-          
-          if (budgetMatch) {
-            const budgetString = budgetMatch[1].replace(/,/g, '')
-            const budgetValue = parseInt(budgetString, 10)
-            console.log(`[BUDGET] Parsing "${budgetString}" -> ${budgetValue}`)
-            
+          if (budgetColumn && budgetColumn.includes('$')) {
+            // Extract numeric value from budget string like "$150,000"
+            const budgetValue = parseInt(budgetColumn.replace(/[$,]/g, ''), 10)
             if (!isNaN(budgetValue)) {
-              projectCount++
               totalBudget += budgetValue
-              console.log(`[SUCCESS] Project #${projectCount}: Budget $${budgetValue.toLocaleString()}, Running total: $${totalBudget.toLocaleString()}`)
-            } else {
-              console.log(`[ERROR] Could not parse budget value: "${budgetString}" -> NaN`)
+              projectCount++
+              console.log(`[PROJECT] Found project with budget: $${budgetValue.toLocaleString()}`)
             }
-          } else {
-            console.log(`[ERROR] No budget match found in column: "${budgetColumn}"`)
           }
-        } else {
-          console.log(`[ERROR] Not enough columns (${columns.length}), expected at least 4`)
-        }
-      } else {
-        if (line.trim()) {
-          console.log(`[SKIP] Skipping non-data line ${i}: starts with pipe? ${startsWithPipe}, contains $? ${containsDollar}`)
         }
       }
     }
-    
-    const result = { count: projectCount, totalBudget }
-    console.log('[RESULT] FINAL PARSED RESULT:', result)
-    console.log(`[SUMMARY] ${projectCount} projects, $${totalBudget.toLocaleString()} total budget`)
-    return result
+
+    console.log(`[PROJECT] Parsed ${projectCount} projects with total budget: $${totalBudget.toLocaleString()}`)
+    return { count: projectCount, totalBudget }
   }
 
-  const parseProjectsList = (output: string): Array<{id: number, name: string}> => {
+  const parseProjectsList = (output: string): { id: number; name: string; budget: number }[] => {
     const lines = output.trim().split('\n')
-    const projects: Array<{id: number, name: string}> = []
+    const projects: { id: number; name: string; budget: number }[] = []
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]
-
-      // Skip obvious header/separator lines
-      const isHeaderLine = line.includes('━') || 
-          line.includes('Real Estate Projects') || 
-          line.includes('┏') || 
-          line.includes('┗') || 
-          line.includes('┃ ID') ||
-          line.includes('┡') ||
-          line.includes('└') ||
-          !line.trim()
-          
-      if (isHeaderLine) {
-        console.log(`⏭️  Skipping header line ${i}: ${JSON.stringify(line.substring(0, 50))}`)
-        continue
-      }
-
-      // Look for data lines - they should start with │ and have project data
-      const startsWithPipe = line.startsWith('│')
-      const containsDollar = line.includes('$')
-
-      if (startsWithPipe && containsDollar) {
-        const rawColumns = line.split('│')
-        const columns = rawColumns.map(col => col.trim()).filter(col => col)
-
-        if (columns.length >= 4) {
+      if (line.startsWith('│') && !line.startsWith('┃')) {
+        // This is a data row
+        const columns = line.split('│').map(col => col.trim()).filter(col => col)
+        
+        // New format: ID, Name, Status, Priority, Budget, Type, Created
+        if (columns.length >= 5) {
           const idColumn = columns[0] // 1st column (0-indexed)
           const nameColumn = columns[1] // 2nd column (0-indexed)
+          const budgetColumn = columns[4] // 5th column (0-indexed) - Budget is now here
 
-          if (idColumn && nameColumn) {
+          if (idColumn && nameColumn && budgetColumn) {
             const id = parseInt(idColumn.trim(), 10)
-            if (!isNaN(id)) {
-              projects.push({ id, name: nameColumn.trim() })
-              console.log(`[SUCCESS] Parsed project: ID=${id}, Name="${nameColumn}"`)
+            const budgetValue = parseInt(budgetColumn.trim().replace(/[$,]/g, ''), 10)
+
+            if (!isNaN(id) && !isNaN(budgetValue)) {
+              projects.push({ id, name: nameColumn.trim(), budget: budgetValue })
+              console.log(`[SUCCESS] Parsed project: ID=${id}, Name="${nameColumn}", Budget=$${budgetValue.toLocaleString()}`)
             } else {
-              console.log(`[WARN] Could not parse ID from column: "${idColumn}"`)
+              console.log(`[WARN] Could not parse ID or Budget from line: ${JSON.stringify(line)}`)
             }
           } else {
-            console.log(`[WARN] Could not parse ID or Name from line: ${JSON.stringify(line)}`)
+            console.log(`[WARN] Could not parse ID, Name, or Budget from line: ${JSON.stringify(line)}`)
           }
         } else {
-          console.log(`[WARN] Not enough columns for project parsing: ${columns.length}`)
-        }
-      } else {
-        if (line.trim()) {
-          console.log(`⏭️  Skipping non-data line ${i}: starts with pipe? ${startsWithPipe}, contains $? ${containsDollar}`)
+          console.log(`[WARN] Line has insufficient columns: ${JSON.stringify(line)}`)
         }
       }
     }
+
+    console.log(`[PROJECTS] Parsed ${projects.length} projects for expense modal`)
     return projects
   }
 
-
-
-  const calculateTotalExpensesFromOutput = (output: string): number => {
-    // Parse all expenses from the combined output of all projects
+  const parseAllExpensesTotalSpent = (output: string): number => {
+    // Parse total expenses from the combined output of all projects
     console.log('[EXPENSE] Parsing total expenses from output length:', output.length)
     
+    const lines = output.trim().split('\n')
     let totalExpenses = 0
-    const projects = output.split('\n---PROJECT_SEPARATOR---\n')
-    
-    console.log('[EXPENSE] Processing expenses from', projects.length, 'projects')
-    
-    for (let i = 0; i < projects.length; i++) {
-      const projectOutput = projects[i].trim()
-      if (!projectOutput) continue
-      
-      console.log(`[EXPENSE] Processing project ${i + 1} expenses:`)
-      
-      const lines = projectOutput.split('\n')
-      
-      for (const line of lines) {
-        // Look for expense table rows
-        if (line.startsWith('│') && line.includes('$')) {
-          const columns = line.split('│').map(col => col.trim()).filter(col => col)
-          
-          // Find the cost column (should be in format $XX,XXX.XX)
-          for (const column of columns) {
-            const costMatch = column.match(/\$([0-9,]+\.[0-9]+)/)
-            if (costMatch) {
-              const costValue = parseFloat(costMatch[1].replace(/,/g, ''))
-              if (!isNaN(costValue)) {
-                totalExpenses += costValue
-                console.log(`[EXPENSE] Found expense: $${costValue}, Running total: $${totalExpenses}`)
-                break // Only count one cost per line
+
+    for (const line of lines) {
+      if (line.startsWith('│') && line.includes('$')) {
+        // Extract expense amount from the line
+        const columns = line.split('│').map(col => col.trim()).filter(col => col)
+        
+        // Look for a column that contains a dollar amount
+        for (const column of columns) {
+          if (column.includes('$')) {
+            const expenseMatch = column.match(/\$[\d,]+(?:\.\d{2})?/)
+            if (expenseMatch) {
+              const expenseAmount = parseFloat(expenseMatch[0].replace(/[$,]/g, ''))
+              if (!isNaN(expenseAmount)) {
+                totalExpenses += expenseAmount
+                console.log(`[EXPENSE] Found expense: $${expenseAmount.toLocaleString()}`)
               }
             }
           }
         }
+      }
+    }
+
+    console.log(`[EXPENSE] Total expenses calculated: $${totalExpenses.toLocaleString()}`)
+    return totalExpenses
+  }
+
+  const parseExpensesFromOutput = (output: string): { cost: number }[] => {
+    const expenses: { cost: number }[] = []
+    const lines = output.trim().split('\n')
+    
+    for (const line of lines) {
+      if (line.startsWith('│') && !line.startsWith('┃')) {
+        const columns = line.split('│').map(col => col.trim()).filter(col => col)
         
-        // Also look for "Total Cost:" lines at the end of each project
-        if (line.includes('Total Cost:')) {
-          const totalMatch = line.match(/Total Cost:\s*\$([0-9,]+\.[0-9]+)/)
-          if (totalMatch) {
-            const totalValue = parseFloat(totalMatch[1].replace(/,/g, ''))
-            if (!isNaN(totalValue)) {
-              console.log(`[EXPENSE] Found project total: $${totalValue}`)
-              // Note: We don't add this to totalExpenses as we've already counted individual expenses
-              // This is just for logging/verification
+        // Look for the amount column (usually the last one before actions)
+        if (columns.length >= 4) {
+          const amountColumn = columns[columns.length - 2] // Second to last column
+          const costMatch = amountColumn.match(/\$([0-9,]+(?:\.[0-9]+)?)/)
+          if (costMatch) {
+            const cost = parseFloat(costMatch[1].replace(/,/g, ''))
+            if (!isNaN(cost)) {
+              expenses.push({ cost })
+              console.log(`[DASHBOARD] Found expense: $${cost}`)
             }
           }
         }
       }
     }
     
-    console.log('[EXPENSE] Final total expenses calculated:', totalExpenses)
-    return totalExpenses
+    console.log(`[DASHBOARD] Total expenses found: ${expenses.length}, Total amount: $${expenses.reduce((sum, exp) => sum + exp.cost, 0)}`)
+    return expenses
   }
 
-  const getConnectionStatusColor = () => {
-    switch (connectionStatus) {
-      case 'connected': return 'text-green-600'
-      case 'error': return 'text-red-600'  
-      case 'testing': return 'text-yellow-600'
-      default: return 'text-gray-600'
+  const loadDashboardData = async () => {
+    try {
+      setStats(prev => ({ ...prev, isLoading: true }))
+
+      console.log('[DASHBOARD] Loading portfolio data...')
+      
+      // Get projects data
+      console.log('[DASHBOARD] Fetching projects data...')
+      const projectsOutput = await TauriService.getProjects()
+      console.log('[DASHBOARD] Raw projects output:', projectsOutput)
+      
+      // Parse project count and budget from CLI output  
+      const { count: projectCount, totalBudget } = parseProjectData(projectsOutput)
+      console.log('[DASHBOARD] Parsed project data:', { projectCount, totalBudget })
+
+      // Parse and set projects list for expense modal
+      const projectsList = parseProjectsList(projectsOutput)
+      console.log('[DASHBOARD] Parsed projects list:', projectsList)
+      setProjects(projectsList)
+
+      // Calculate total spent across all projects (optimized)
+      console.log('[DASHBOARD] Calculating total expenses...')
+      let totalSpent = 0
+      const projectSpents: { [key: number]: number } = {}
+      
+      if (projectCount > 0) {
+        // Calculate expenses per project since getAllExpenses requires project iteration
+        console.log('[DASHBOARD] Calculating expenses per project...')
+        for (const project of projectsList) {
+          try {
+            const expensesOutput = await TauriService.getExpenses(project.id)
+            console.log(`[DASHBOARD] Raw expenses output for project ${project.id}:`, expensesOutput)
+            const expenses = parseExpensesFromOutput(expensesOutput)
+            const projectSpent = expenses.reduce((sum, exp) => sum + exp.cost, 0)
+            projectSpents[project.id] = projectSpent
+            totalSpent += projectSpent
+            console.log(`[DASHBOARD] Project ${project.id} (${project.name}): $${projectSpent.toLocaleString()}`)
+          } catch (err) {
+            console.warn(`[DASHBOARD] Could not load expenses for project ${project.id} (${project.name}):`, err)
+          }
+        }
+      }
+
+      console.log(`[DASHBOARD] Total spent across all projects: $${totalSpent.toLocaleString()}`)
+
+      const finalStats = {
+        projectCount,
+        totalBudget,
+        totalSpent,
+        isLoading: false
+      }
+
+      setStats(finalStats)
+      
+      // Cache the results
+      dataCache.setDashboardStats(finalStats)
+      if (projectsList.length > 0) {
+        // Convert to proper ProjectData format for cache
+        const projectsForCache = projectsList.map(p => ({
+          ...p,
+          spent: projectSpents[p.id] || 0, // Use the actual spent amount for each project
+          status: 'active' // Default status
+        }))
+        dataCache.setProjects(projectsForCache)
+      }
+      
+      console.log('[DASHBOARD] Portfolio data loaded successfully')
+      
+    } catch (error) {
+      console.error('Failed to load dashboard data:', error)
+      toast.error(`Failed to load dashboard: ${TauriService.handleError(error)}`)
+      setStats(prev => ({ ...prev, isLoading: false }))
     }
-  }
-
-  const getConnectionStatusText = () => {
-    switch (connectionStatus) {
-      case 'connected': return 'Connected'
-      case 'error': return 'Connection Failed'
-      case 'testing': return 'Connecting...'
-      default: return 'Unknown'
-    }
-  }
-
-  const handleCreateProject = async () => {
-    setIsProjectModalOpen(true)
   }
 
   return (
-    <div className="p-6">
-      {/* Header with Connection Status */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-50">Dashboard</h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-2">
-              Welcome to Real Estate Tracker - Manage your renovation projects
-            </p>
-          </div>
-          <div className="text-right">
-            <div className={`text-sm font-medium ${getConnectionStatusColor()}`}>
-              {getConnectionStatusText()}
-            </div>
-            {appInfo && (
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                {appInfo.name} v{appInfo.version}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* System Information */}
-      {pythonInfo && (
-        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-          <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">System Status</h3>
-          <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-            <div>Python: {pythonInfo.version}</div>
-            <div>Backend: {pythonInfo.has_backend ? '[OK] Available' : '[ERROR] Not Found'}</div>
-            <div>Executable: {pythonInfo.executable}</div>
-          </div>
-        </div>
-      )}
-
-      {/* Project Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <div className="card p-6">
-          <h3 className="text-lg font-semibold mb-2">Active Projects</h3>
-          {stats.isLoading ? (
-            <div className="animate-pulse">
-              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
-            </div>
-          ) : (
-            <>
-              <p className="text-3xl font-bold text-brand-600">{stats.projectCount}</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {stats.projectCount === 0 ? 'No projects yet' : 'Projects in progress'}
-              </p>
-            </>
-          )}
-        </div>
-        
-        <div className="card p-6">
-          <h3 className="text-lg font-semibold mb-2">Total Budget</h3>
-          {stats.isLoading ? (
-            <div className="animate-pulse">
-              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
-            </div>
-          ) : (
-            <>
-              <p className="text-3xl font-bold text-green-600">
-                ${stats.totalBudget.toLocaleString()}
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Across all projects</p>
-            </>
-          )}
-        </div>
-        
-        <div className="card p-6">
-          <h3 className="text-lg font-semibold mb-2">Total Spent</h3>
-          {stats.isLoading ? (
-            <div className="animate-pulse">
-              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
-            </div>
-          ) : (
-            <>
-              <p className="text-3xl font-bold text-orange-600">
-                ${stats.totalSpent.toLocaleString()}
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total expenses</p>
-            </>
-          )}
-                  </div>
-        </div>
-
-        {/* Debug commands for troubleshooting */}
-        {import.meta.env.DEV && (
-          <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
-            <h3 className="font-medium mb-3">Debug & Troubleshooting</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <button 
-                onClick={handleDebugPaths}
-                className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700"
+    <div className="min-h-screen bg-white dark:bg-[#0f1114]">
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Page Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={loadDashboardData}
+                disabled={stats.isLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed"
               >
-                Debug Python Paths
-              </button>
-              <button 
-                onClick={handleTestExecution}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-              >
-                Test Python Execution
+                {stats.isLoading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+                {stats.isLoading ? 'Loading...' : 'Refresh'}
               </button>
             </div>
-            
-            {/* Debug Output */}
-            {debugOutput && (
-              <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-900 rounded border">
-                <h4 className="font-medium text-sm mb-2">Debug Output:</h4>
-                <pre className="text-xs font-mono whitespace-pre-wrap">{debugOutput}</pre>
-              </div>
-            )}
-            
-            {/* Test Output */}
-            {testOutput && (
-              <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-900 rounded border">
-                <h4 className="font-medium text-sm mb-2">Test Output:</h4>
-                <pre className="text-xs font-mono whitespace-pre-wrap">{testOutput}</pre>
-              </div>
-            )}
           </div>
-        )}
+          <p className="text-gray-600 dark:text-gray-400 text-base">
+            Overview of your real estate portfolio
+          </p>
+        </div>
 
-        {/* Quick Actions */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <button 
-              onClick={handleCreateProject}
-              className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
-            >
-              <div className="text-center">
-                <div className="font-medium">Create Demo Project</div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Add a sample house flip project</div>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Total Projects */}
+          <div className="bg-white dark:bg-[#131619] border border-gray-200 dark:border-[#1d2328] rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Projects</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{stats.projectCount}</p>
               </div>
-            </button>
-            
-            <button 
-              onClick={loadDashboardData}
-              className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-            >
-              <div className="text-center">
-                <div className="font-medium">Refresh Data</div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Reload dashboard information</div>
+              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
-            </button>
+            </div>
+          </div>
 
-            <button 
-              onClick={() => {
-                if (stats.projectCount === 0) {
-                  toast.error('Please create a project first before adding expenses')
-                  return
-                }
-                setIsExpenseModalOpen(true)
-              }}
-              className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
-            >
-              <div className="text-center">
-                <div className="font-medium">Add Expense</div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Add a new expense to a project</div>
+          {/* Total Budget */}
+          <div className="bg-white dark:bg-[#131619] border border-gray-200 dark:border-[#1d2328] rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Budget</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{formatLargeNumber(stats.totalBudget)}</p>
               </div>
-            </button>
+              <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/20 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+              </div>
+            </div>
+          </div>
 
-            <button 
-              onClick={() => navigate('/reports')}
-              className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
-            >
-              <div className="text-center">
-                <div className="font-medium">View Reports</div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">View detailed project reports</div>
+          {/* Total Spent */}
+          <div className="bg-white dark:bg-[#131619] border border-gray-200 dark:border-[#1d2328] rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Spent</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{formatLargeNumber(stats.totalSpent)}</p>
               </div>
-            </button>
+              <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+              </div>
+            </div>
+          </div>
+
+          {/* Available Budget */}
+          <div className="bg-white dark:bg-[#131619] border border-gray-200 dark:border-[#1d2328] rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Available Budget</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{formatLargeNumber(stats.totalBudget - stats.totalSpent)}</p>
+              </div>
+              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
+                <Wallet className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Recent Activity / Projects */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
-          <div className="card p-6">
-            {stats.isLoading ? (
-              <div className="animate-pulse space-y-4">
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
+        {/* Quick Actions - Monday.com Style */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <div className="group relative bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:scale-105 hover:-translate-y-1 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 dark:from-blue-500/10 dark:to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                </div>
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                  Quick Action
+                </span>
               </div>
-            ) : stats.projectCount === 0 ? (
-              <div className="text-center py-8">
-                <h3 className="text-lg font-medium mb-2">No Projects Yet</h3>
-                <p className="text-gray-500 dark:text-gray-400 mb-4">
-                  Create your first house flipping project to get started!
-                </p>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Add New Project</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">Start tracking a new renovation project with budget and details.</p>
+              <button 
+                onClick={() => navigate('/projects')}
+                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 hover:shadow-lg"
+              >
+                Create Project
+              </button>
+            </div>
+          </div>
+
+          <div className="group relative bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:scale-105 hover:-translate-y-1 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 dark:from-emerald-500/10 dark:to-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                  </svg>
+                </div>
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                  Record
+                </span>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Log Expense</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">Record materials, labor costs, and other project expenses.</p>
+              <button 
+                onClick={() => setIsExpenseModalOpen(true)}
+                disabled={stats.projectCount === 0}
+                className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 hover:shadow-lg disabled:hover:scale-100 disabled:hover:shadow-none"
+              >
+                {stats.projectCount === 0 ? 'Create Project First' : 'Add Expense'}
+              </button>
+            </div>
+          </div>
+
+          <div className="group relative bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:scale-105 hover:-translate-y-1 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-pink-500/5 dark:from-purple-500/10 dark:to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                  Analytics
+                </span>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">View Reports</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">Analyze project performance, costs, and budget utilization.</p>
+              <button 
+                onClick={() => navigate('/reports')}
+                className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 hover:shadow-lg"
+              >
+                View Analytics
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Activity - Timeline Style */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Recent Activity</h3>
+              <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">Latest updates from your renovation projects</p>
+            </div>
+            {stats.projectCount > 0 && (
+              <div className="flex gap-2">
                 <button 
-                  onClick={handleCreateProject}
-                  className="btn-primary"
+                  onClick={() => setIsExpenseModalOpen(true)}
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium transition-colors"
                 >
-                  Create Demo Project
+                  Add Expense
+                </button>
+                <span className="text-gray-300 dark:text-gray-600">•</span>
+                <button 
+                  onClick={() => navigate('/projects')}
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium transition-colors"
+                >
+                  View Projects →
                 </button>
               </div>
-            ) : (
-              <div>
-                <p className="text-gray-600 dark:text-gray-300">
-                  You have {stats.projectCount} active project{stats.projectCount !== 1 ? 's' : ''}.
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                  Project details will be displayed here once the UI is fully integrated.
-                </p>
-              </div>
             )}
           </div>
+          
+          {stats.isLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="flex items-start gap-4">
+                  <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse"></div>
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-3/4"></div>
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-1/2"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : stats.projectCount === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Ready to Start Building!</h4>
+              <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+                Begin your real estate journey by creating your first renovation project. Track expenses, manage budgets, and monitor progress all in one place.
+              </p>
+              <div className="flex items-center justify-center gap-4">
+                <button 
+                  onClick={() => navigate('/projects')}
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 hover:shadow-lg"
+                >
+                  Create Your First Project
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="flex items-start gap-4">
+                <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      Portfolio Initialized
+                    </h4>
+                    <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 px-2 py-1 rounded-full">
+                      Active
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    {stats.projectCount} project{stats.projectCount !== 1 ? 's' : ''} actively monitored with {formatLargeNumber(stats.totalBudget)} total investment
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      Budget Utilization Tracking
+                    </h4>
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      stats.totalBudget > 0 && stats.totalSpent / stats.totalBudget > 0.8 
+                        ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
+                        : stats.totalBudget > 0 && stats.totalSpent / stats.totalBudget > 0.6
+                          ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
+                          : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+                    }`}>
+                      {stats.totalBudget > 0 ? `${formatPercentage((stats.totalSpent / stats.totalBudget) * 100)}%` : '0%'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    {formatLargeNumber(stats.totalSpent)} spent of {formatLargeNumber(stats.totalBudget)} budget - {stats.totalBudget > 0 && stats.totalSpent / stats.totalBudget > 0.8 ? 'Monitor closely' : 'On track'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      Performance Insights
+                    </h4>
+                    <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-2 py-1 rounded-full">
+                      Updated
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Portfolio health: {stats.totalBudget > 0 && stats.totalSpent / stats.totalBudget < 0.8 ? 'Excellent' : 'Needs attention'} • 
+                    {stats.projectCount > 0 ? ' Active management' : ' Ready to start'} • 
+                    {formatCompactNumber(stats.totalBudget - stats.totalSpent)}K remaining capacity
+                  </p>
+                </div>
+              </div>
+              
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Quick Actions</span>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setIsExpenseModalOpen(true)}
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium transition-colors"
+                      disabled={stats.projectCount === 0}
+                    >
+                      Add Expense
+                    </button>
+                    <span className="text-gray-300 dark:text-gray-600">•</span>
+                    <button 
+                      onClick={() => navigate('/projects')}
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium transition-colors"
+                    >
+                      View Projects →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-
-        {/* Development/Debug Information */}
-        {connectionStatus === 'error' && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-            <h3 className="font-semibold text-red-900 dark:text-red-100 mb-2">Connection Error</h3>
-            <p className="text-sm text-red-800 dark:text-red-200 mb-3">
-              Failed to connect to the backend. This could be due to:
-            </p>
-            <ul className="text-sm text-red-800 dark:text-red-200 list-disc list-inside space-y-1 mb-3">
-              <li>Python not installed or not in PATH</li>
-              <li>Backend dependencies missing</li>
-              <li>Database initialization failed</li>
-              <li>File permissions issues</li>
-            </ul>
-            <div className="flex gap-2">
-              <button 
-                onClick={loadDashboardData}
-                className="px-4 py-2 bg-red-100 dark:bg-red-800 text-red-800 dark:text-red-100 rounded hover:bg-red-200 dark:hover:bg-red-700"
-              >
-                Retry Connection
-              </button>
-            </div>
-            
-            {/* Debug Output */}
-            {debugOutput && (
-              <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-900 rounded border">
-                <h4 className="font-medium text-sm mb-2">Debug Output:</h4>
-                <pre className="text-xs font-mono whitespace-pre-wrap">{debugOutput}</pre>
-              </div>
-            )}
-            
-            {/* Test Output */}
-            {testOutput && (
-              <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-900 rounded border">
-                <h4 className="font-medium text-sm mb-2">Test Output:</h4>
-                <pre className="text-xs font-mono whitespace-pre-wrap">{testOutput}</pre>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Integration Test Status */}
-        {import.meta.env.DEV && (
-          <div className="mt-8 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border">
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
-              [TEST] Integration Test Status
-            </h3>
-            <div className="text-sm space-y-1">
-              <div className={connectionStatus === 'connected' ? 'text-green-600' : 'text-red-600'}>
-                [OK] React Frontend: Working
-              </div>
-              <div className={connectionStatus === 'connected' ? 'text-green-600' : 'text-red-600'}>
-                {connectionStatus === 'connected' ? '[OK]' : '[ERROR]'} Tauri IPC: {getConnectionStatusText()}
-              </div>
-              <div className={pythonInfo?.has_backend ? 'text-green-600' : 'text-red-600'}>
-                {pythonInfo?.has_backend ? '[OK]' : '[ERROR]'} Python CLI Backend: {pythonInfo?.has_backend ? 'Available' : 'Not Found'}
-              </div>
-              <div className="text-gray-600 dark:text-gray-300">
-                [DATA] Projects Loaded: {stats.projectCount}
-              </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                This debug panel is only visible in development mode.
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {/* Expense Modal */}
-        <ExpenseModal
-          isOpen={isExpenseModalOpen}
-          onClose={() => setIsExpenseModalOpen(false)}
-          onSuccess={loadDashboardData}
-          projects={projects}
-        />
-
-        {/* Project Creation Modal */}
-        <ProjectModal
-          isOpen={isProjectModalOpen}
-          onClose={() => setIsProjectModalOpen(false)}
-          onSuccess={loadDashboardData}
-        />
-
-
       </div>
-    )
-  } 
+
+      {/* Expense Modal */}
+      <ExpenseModal
+        isOpen={isExpenseModalOpen}
+        onClose={() => setIsExpenseModalOpen(false)}
+        onSuccess={loadDashboardData}
+        projects={projects}
+      />
+    </div>
+  )
+} 

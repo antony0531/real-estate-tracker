@@ -1,85 +1,89 @@
+import React, { useState, useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
-import { useEffect, useState } from 'react'
-import { invoke } from '@tauri-apps/api/tauri'
-import { toast } from 'sonner'
+import { Toaster } from 'sonner'
+import { motion, AnimatePresence } from 'framer-motion'
 
-// Import pages
-import Dashboard from '@/pages/Dashboard'
-import Projects from '@/pages/Projects'
-import ProjectView from '@/pages/ProjectView'
-import Expenses from '@/pages/Expenses'
-  import Reports from './pages/Reports'
-  import Settings from './pages/Settings'
-  import Debug from './pages/Debug'
+import Layout from './components/layout/Layout'
+import ModernDashboard from './pages/ModernDashboard'
+import Projects from './pages/Projects'
+import ProjectView from './pages/ProjectView'
+import Expenses from './pages/Expenses'
+import ModernSettings from './pages/ModernSettings'
+import Debug from './pages/Debug'
+import Rooms from './pages/Rooms'
+import Reports from './pages/Reports'
 
-// Import components
-import Layout from '@/components/layout/Layout'
-import LoadingScreen from '@/components/LoadingScreen'
+import { TauriService } from './services/tauri'
+import { DebugProvider } from './contexts/DebugContext'
+import type { AppInfo } from './types'
 
-// Import types
-import type { AppInfo } from '@/types'
-
-function App() {
+export default function App() {
   const [isLoading, setIsLoading] = useState(true)
-  const [appInfo, setAppInfo] = useState<AppInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Initialize app on mount
   useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        // Initialize the database
+        console.log('Initializing database...')
+        await TauriService.initializeDatabase()
+        console.log('Database initialized successfully')
+
+        // Get app info
+        const info = await TauriService.getAppInfo()
+        console.log('App initialized successfully:', info)
+
+      } catch (err) {
+        console.error('Failed to initialize app:', err)
+        setError(`Failed to initialize app: ${err}`)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
     initializeApp()
   }, [])
 
-  const initializeApp = async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
-
-      // Get app information from Tauri backend
-      const info = await invoke<AppInfo>('get_app_info')
-      setAppInfo(info)
-
-      // Initialize database if needed
-      try {
-        await invoke('initialize_database')
-      } catch (dbError) {
-        console.warn('Database already initialized or error:', dbError)
-        // Don't treat this as a fatal error - database might already be initialized
-      }
-
-      // Show success message
-      toast.success('Real Estate Tracker loaded successfully!')
-      
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to initialize app'
-      setError(errorMessage)
-      toast.error(errorMessage)
-      console.error('App initialization error:', err)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  // Show loading screen while initializing
   if (isLoading) {
-    return <LoadingScreen />
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-950">
+        <motion.div 
+          className="text-center p-8"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary-200 border-t-primary-600 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            Starting Real Estate Tracker...
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            Initializing database and loading components
+          </p>
+        </motion.div>
+      </div>
+    )
   }
 
-  // Show error state if initialization failed
   if (error) {
     return (
-      <div className="full-screen center flex-col space-y-4">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-2">
-            Failed to Initialize App
-          </h1>
-          <p className="text-muted-foreground mb-4">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="text-center p-8 max-w-md">
+          <div className="text-red-500 text-4xl mb-4">⚠️</div>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            Initialization Error
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm">
             {error}
           </p>
-          <button 
-            onClick={initializeApp}
-            className="btn-primary px-4 py-2"
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
           >
-            Try Again
+            Retry
           </button>
         </div>
       </div>
@@ -87,63 +91,69 @@ function App() {
   }
 
   return (
-    <Layout appInfo={appInfo}>
-      <Routes>
-        {/* Main dashboard route */}
-        <Route 
-          path="/" 
-          element={<Dashboard />} 
-        />
-        
-        {/* Projects routes */}
-        <Route 
-          path="/projects" 
-          element={<Projects />} 
-        />
-        <Route 
-          path="/projects/:projectId" 
-          element={<ProjectView />} 
-        />
-        
-        {/* Expenses route */}
-        <Route 
-          path="/expenses" 
-          element={<Expenses />} 
-        />
-        
-        {/* Reports route */}
-        <Route 
-          path="/reports" 
-          element={<Reports />} 
-        />
-        
-        {/* Settings route */}
-        <Route 
-          path="/settings" 
-          element={<Settings />} 
-        />
+    <DebugProvider>
+      <Layout>
+        <Routes>
+          {/* Main dashboard route */}
+          <Route 
+            path="/" 
+            element={<ModernDashboard />} 
+          />
+          
+          {/* Projects routes */}
+          <Route 
+            path="/projects" 
+            element={<Projects />} 
+          />
+          <Route 
+            path="/projects/:id" 
+            element={<ProjectView />} 
+          />
+          
+          {/* Expenses route */}
+          <Route 
+            path="/expenses" 
+            element={<Expenses />} 
+          />
 
-        {/* Debug route */}
-        <Route 
-          path="/debug" 
-          element={<Debug />} 
-        />
-        
-        {/* Catch-all route for 404s */}
-        <Route 
-          path="*" 
-          element={
-            <div className="center flex-col space-y-4 h-full">
-              <h1 className="text-2xl font-bold">Page Not Found</h1>
-              <p className="text-muted-foreground">
-                The page you're looking for doesn't exist.
-              </p>
-            </div>
-          } 
-        />
-      </Routes>
-    </Layout>
+          {/* Rooms route */}
+          <Route 
+            path="/rooms" 
+            element={<Rooms />} 
+          />
+
+          {/* Reports route */}
+          <Route 
+            path="/reports" 
+            element={<Reports />} 
+          />
+          
+          {/* Settings route */}
+          <Route 
+            path="/settings" 
+            element={<ModernSettings />} 
+          />
+          
+          {/* Debug route */}
+          <Route 
+            path="/debug" 
+            element={<Debug />} 
+          />
+        </Routes>
+      </Layout>
+
+      {/* Global toast notifications */}
+      <Toaster 
+        position="top-right" 
+        richColors 
+        closeButton 
+        toastOptions={{
+          duration: 4000,
+          style: {
+            fontSize: '14px',
+          },
+        }}
+      />
+    </DebugProvider>
   )
-}
-
-export default App 
+} 

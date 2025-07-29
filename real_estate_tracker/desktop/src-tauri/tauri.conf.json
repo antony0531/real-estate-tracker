@@ -1,8 +1,9 @@
 {
+  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "build": {
-    "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
-    "devPath": "http://localhost:9876",
+    "beforeDevCommand": "npm run dev",
+    "devPath": "http://localhost:1420",
     "distDir": "../dist"
   },
   "package": {
@@ -16,7 +17,19 @@
         "all": false,
         "execute": true,
         "sidecar": false,
-        "open": false
+        "open": false,
+        "scope": [
+          {
+            "name": "python3",
+            "cmd": "python3",
+            "args": true
+          },
+          {
+            "name": "pip3",
+            "cmd": "pip3",
+            "args": true
+          }
+        ]
       },
       "fs": {
         "all": false,
@@ -44,18 +57,6 @@
       },
       "path": {
         "all": true
-      },
-      "globalShortcut": {
-        "all": false
-      },
-      "clipboard": {
-        "all": false,
-        "readText": false,
-        "writeText": false
-      },
-      "http": {
-        "all": false,
-        "request": false
       }
     },
     "bundle": {

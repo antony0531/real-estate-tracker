@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # Backend API service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: real_estate_backend
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_PATH=/data/tracker.db
+      - JWT_SECRET=your-secret-key-change-in-production
+    volumes:
+      - ./backend:/app  # Hot reload for development
+      - ./data:/data    # Persistent database storage
+    ports:
+      - "8000:8000"  # For future API
+    command: python -m src.cli  # Override for API: python -m src.api
+    networks:
+      - real_estate_network
+
+  # Frontend development server
+  frontend:
+    build:
+      context: ./desktop
+      dockerfile: Dockerfile.dev
+    container_name: real_estate_frontend
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://backend:8000
+    volumes:
+      - ./desktop:/app
+      - /app/node_modules  # Prevent overwriting node_modules
+    ports:
+      - "5173:5173"  # Vite dev server
+    depends_on:
+      - backend
+    networks:
+      - real_estate_network
+    command: npm run dev -- --host
+
+  # Database management (optional, for future PostgreSQL migration)
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: real_estate_db
+  #   environment:
+  #     - POSTGRES_USER=realestate
+  #     - POSTGRES_PASSWORD=realestate
+  #     - POSTGRES_DB=real_estate_tracker
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   networks:
+  #     - real_estate_network
+
+  # Redis for caching (future enhancement)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: real_estate_cache
+  #   ports:
+  #     - "6379:6379"
+  #   networks:
+  #     - real_estate_network
+
+networks:
+  real_estate_network:
+    driver: bridge
+
+volumes:
+  postgres_data:

@@ -1,55 +1,51 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import path from 'path'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
 
-  // Vite options tailored for Tauri development
+  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
+  //
+  // 1. prevent vite from obscuring rust errors
   clearScreen: false,
-  
-  // Tauri expects a fixed port for development
+  // 2. tauri expects a fixed port, fail if that port is not available
   server: {
-    port: 9876,
+    port: 1420,
     strictPort: true,
-    // Host to allow external connections (important for Tauri)
-    host: '0.0.0.0',
-    // Disable HMR in Tauri for better stability
-    hmr: {
-      port: 9877,
+    watch: {
+      // 3. tell vite to ignore watching `src-tauri`
+      ignored: ["**/src-tauri/**"],
+    },
+  },
+  
+  // Resolve aliases for easier imports
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
     },
   },
 
-  // Environment variables available to the frontend
-  envPrefix: ['VITE_', 'TAURI_'],
+  // Optimize dependencies
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom",
+      "react-router-dom",
+      "@tanstack/react-query",
+      "lucide-react",
+      "sonner"
+    ],
+  },
 
   // Build configuration
   build: {
     // Tauri supports es2021
-    target: 'es2021',
-    // Minify for production
-    minify: !process.env.TAURI_DEBUG ? 'esbuild' : false,
-    // Generate sourcemaps for debugging
+    target: process.env.TAURI_PLATFORM == "windows" ? "chrome105" : "safari13",
+    // don't minify for debug builds
+    minify: !process.env.TAURI_DEBUG ? "esbuild" : false,
+    // produce sourcemaps for debug builds
     sourcemap: !!process.env.TAURI_DEBUG,
   },
-
-  // Path resolution for cleaner imports
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-      '@components': path.resolve(__dirname, './src/components'),
-      '@pages': path.resolve(__dirname, './src/pages'),
-      '@hooks': path.resolve(__dirname, './src/hooks'),
-      '@services': path.resolve(__dirname, './src/services'),
-      '@stores': path.resolve(__dirname, './src/stores'),
-      '@types': path.resolve(__dirname, './src/types'),
-      '@utils': path.resolve(__dirname, './src/utils'),
-    },
-  },
-
-  // CSS preprocessing
-  css: {
-    postcss: './postcss.config.js',
-  },
-})
+});

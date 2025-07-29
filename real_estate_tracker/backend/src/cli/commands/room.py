@@ -145,6 +145,120 @@ def list_rooms(project_id: int = typer.Argument(..., help="Project ID")):
         session.close()
 
 
+@app.command("update")
+def update_room(
+    project_id: int = typer.Argument(..., help="Project ID"),
+    room_name: str = typer.Argument(..., help="Current room name"),
+    new_name: Optional[str] = typer.Option(None, "--name", "-n", help="New room name"),
+    length: Optional[float] = typer.Option(
+        None, "--length", "-l", help="New room length in feet"
+    ),
+    width: Optional[float] = typer.Option(
+        None, "--width", "-w", help="New room width in feet"
+    ),
+    height: Optional[float] = typer.Option(
+        None, "--height", "-h", help="New room height in feet"
+    ),
+    condition: Optional[int] = typer.Option(
+        None, "--condition", "-c", help="New condition (1-5 scale)"
+    ),
+    notes: Optional[str] = typer.Option(None, "--notes", help="New notes"),
+):
+    """Update room properties"""
+    if not validate_project_id(project_id):
+        raise typer.Exit(1)
+
+    if condition is not None and (condition < 1 or condition > 5):
+        error_message("Condition must be between 1-5")
+        raise typer.Exit(1)
+
+    session = db_manager.get_session()
+    try:
+        manager = ProjectManager(session)
+        project = manager.get_project(project_id)
+
+        if not project:
+            error_message(f"Project {project_id} not found")
+            raise typer.Exit(1)
+
+        # Find the room
+        room = None
+        for r in project.rooms:
+            if r.name.lower() == room_name.lower():
+                room = r
+                break
+
+        if not room:
+            error_message(f"Room '{room_name}' not found in project {project_id}")
+            raise typer.Exit(1)
+
+        # Check if any updates were provided
+        if not any(
+            [
+                new_name,
+                length is not None,
+                width is not None,
+                height is not None,
+                condition is not None,
+                notes is not None,
+            ]
+        ):
+            error_message("No updates provided. Use --help to see available options.")
+            raise typer.Exit(1)
+
+        # Update fields
+        updated_fields = []
+        if new_name:
+            # Check for duplicate room name
+            for r in project.rooms:
+                if r.id != room.id and r.name.lower() == new_name.lower():
+                    error_message(
+                        f"Room '{new_name}' already exists in project {project_id}"
+                    )
+                    raise typer.Exit(1)
+            room.name = new_name
+            updated_fields.append(f"name: {new_name}")
+
+        if length is not None:
+            room.length_ft = length
+            updated_fields.append(f"length: {length}ft")
+
+        if width is not None:
+            room.width_ft = width
+            updated_fields.append(f"width: {width}ft")
+
+        if height is not None:
+            room.height_ft = height
+            updated_fields.append(f"height: {height}ft")
+
+        if condition is not None:
+            room.initial_condition = condition
+            updated_fields.append(f"condition: {condition}/5")
+
+        if notes is not None:
+            room.notes = notes
+            updated_fields.append(f"notes: {notes}")
+
+        # Update timestamp
+        from datetime import datetime
+
+        room.updated_at = datetime.utcnow()
+
+        session.commit()
+        success_message(f"Successfully updated room '{room.name}'")
+        rprint(f"Updated: {', '.join(updated_fields)}")
+
+        if room.square_footage:
+            rprint(f"New size: {room.square_footage:.0f} sq ft")
+
+    except Exception as e:
+        session.rollback()
+        error_message(f"Error updating room: {e}")
+        raise typer.Exit(1)
+    finally:
+        session.close()
+
+
 @app.command("delete")
 def delete_room(
     project_id: int = typer.Argument(..., help="Project ID"),

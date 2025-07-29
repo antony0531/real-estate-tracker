@@ -14,6 +14,7 @@ from .models import (
     PropertyClass,
     ExpenseCategory,
     ProjectStatus,
+    Priority,
     STANDARD_ROOMS,
 )
 from .database import get_db
@@ -36,12 +37,18 @@ class ProjectManager:
         num_floors: int = 2,
         total_sqft: float = None,
         address: str = None,
+        priority: str = None,
     ) -> Project:
         """Create a new project"""
 
         # Convert string enums to enum values
         prop_type = PropertyType(property_type)
         prop_class = PropertyClass(property_class)
+
+        # Handle priority
+        proj_priority = Priority.MEDIUM  # Default
+        if priority:
+            proj_priority = Priority(priority)
 
         project = Project(
             name=name,
@@ -50,6 +57,7 @@ class ProjectManager:
             property_type=prop_type,
             property_class=prop_class,
             status=ProjectStatus.PLANNING,
+            priority=proj_priority,
             num_floors=num_floors,
             total_sqft=total_sqft,
             address=address,

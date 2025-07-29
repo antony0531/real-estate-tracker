@@ -69,25 +69,25 @@ fn main() {
             commands::get_project,
             commands::create_project,
             commands::update_project,
+            commands::update_project_status,
+            commands::update_project_priority,
             commands::delete_project,
             commands::get_rooms,
             commands::add_room,
+            commands::update_room,
             commands::delete_room,
             commands::get_expenses,
+            commands::get_all_expenses,
             commands::add_expense,
             commands::delete_expense,
             commands::get_budget_status,
             commands::export_project,
-            python::get_python_path,
-            python::check_python_installation,
-            python::debug_python_paths,
-            python::test_python_execution,
             commands::test_expense_add
         ])
         .setup(|app| {
             // Initialize app data directory using Tauri's runtime
             let app_handle = app.handle();
-            let app_handle_clone = app_handle.clone();
+            let _app_handle_clone = app_handle.clone();
             
             // Use Tauri's async runtime instead of tokio::spawn
             tauri::async_runtime::spawn(async move {

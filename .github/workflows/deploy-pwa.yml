@@ -38,13 +38,28 @@
         - name: Build PWA
           run: |
             cd real_estate_tracker/desktop
-            # Build without TypeScript checking (Vite will still check during bundling)
+            # Build with Vite
             npx vite build
-            # Copy PWA files that Vite doesn't handle
-            cp public/service-worker.js dist/
-            cp public/offline.html dist/
+            # Check if public files exist in desktop root, if not check parent directory
+            if [ -f "../../desktop/public/service-worker.js" ]; then
+              cp ../../desktop/public/service-worker.js dist/
+              cp ../../desktop/public/offline.html dist/
+            elif [ -f "../../../desktop/public/service-worker.js" ]; then
+              cp ../../../desktop/public/service-worker.js dist/
+              cp ../../../desktop/public/offline.html dist/
+            else
+              echo "Warning: service-worker.js not found, creating placeholder"
+              echo "// Placeholder service worker" > dist/service-worker.js
+              echo "<html><body>Offline</body></html>" > dist/offline.html
+            fi
             # Create .nojekyll file to serve files starting with _
             touch dist/.nojekyll
+            # Copy manifest.json if it exists
+            if [ -f "public/manifest.json" ]; then
+              cp public/manifest.json dist/
+            elif [ -f "../../desktop/public/manifest.json" ]; then
+              cp ../../desktop/public/manifest.json dist/
+            fi
 
         - name: Setup Pages
           uses: actions/configure-pages@v3

@@ -2,6 +2,8 @@
 // Wraps Tauri commands for easy use in React components
 
 import { invoke } from '@tauri-apps/api/tauri'
+import { Platform } from './platform'
+import { pwaService } from './pwaService'
 
 // Types matching our Rust backend
 export interface AppInfo {
@@ -70,6 +72,11 @@ export class TauriService {
    */
   static async getAppInfo(): Promise<AppInfo> {
     try {
+      if (Platform.isPWA()) {
+        const result = await pwaService.getAppInfo();
+        if (!result.success) throw new Error(result.error);
+        return result.data as any;
+      }
       return await invoke<AppInfo>('get_app_info')
     } catch (error) {
       console.error('Failed to get app info:', error)
@@ -82,6 +89,11 @@ export class TauriService {
    */
   static async initializeDatabase(): Promise<string> {
     try {
+      if (Platform.isPWA()) {
+        const result = await pwaService.initializeDatabase();
+        if (!result.success) throw new Error(result.error);
+        return 'PWA database initialized';
+      }
       return await invoke<string>('initialize_database')
     } catch (error) {
       console.error('Failed to initialize database:', error)
@@ -110,6 +122,11 @@ export class TauriService {
    */
   static async getProjects(): Promise<string> {
     try {
+      if (Platform.isPWA()) {
+        const result = await pwaService.listProjects();
+        if (!result.success) throw new Error(result.error);
+        return JSON.stringify(result.data);
+      }
       return await invoke<string>('get_projects')
     } catch (error) {
       console.error('Failed to get projects:', error)
@@ -134,6 +151,17 @@ export class TauriService {
    */
   static async createProject(data: ProjectData): Promise<string> {
     try {
+      if (Platform.isPWA()) {
+        const result = await pwaService.createProject(
+          data.name,
+          data.budget,
+          data.property_type,
+          data.property_class
+        );
+        if (!result.success) throw new Error(result.error);
+        return JSON.stringify(result.data);
+      }
+      
       const result = await invoke<string>('create_project', { data })
 
       // Invalidate cache after creating project
@@ -312,6 +340,11 @@ export class TauriService {
    */
   static async getExpenses(projectId: number): Promise<string> {
     try {
+      if (Platform.isPWA()) {
+        const result = await pwaService.listExpenses(String(projectId));
+        if (!result.success) throw new Error(result.error);
+        return JSON.stringify(result.data);
+      }
       // The Tauri command only supports projectId, not filters
       // If filters are needed, we'll filter on the frontend
       return await invoke<string>('get_expenses', { projectId })
@@ -333,6 +366,37 @@ export class TauriService {
     notes?: string
   }): Promise<string> {
     try {
+      if (Platform.isPWA()) {
+        // For PWA, we need to create/find the room first
+        const roomsResult = await pwaService.listRooms(String(expenseData.projectId));
+        let roomId = '';
+        if (roomsResult.success && roomsResult.data) {
+          const existingRoom = roomsResult.data.find(r => r.name === expenseData.roomName);
+          if (existingRoom) {
+            roomId = existingRoom.id;
+          } else {
+            // Create the room if it doesn't exist
+            const newRoomResult = await pwaService.createRoom(
+              String(expenseData.projectId),
+              expenseData.roomName
+            );
+            if (newRoomResult.success && newRoomResult.data) {
+              roomId = newRoomResult.data.id;
+            }
+          }
+        }
+        
+        const result = await pwaService.createExpense(
+          String(expenseData.projectId),
+          roomId,
+          expenseData.category,
+          expenseData.cost,
+          expenseData.notes || ''
+        );
+        if (!result.success) throw new Error(result.error);
+        return JSON.stringify(result.data);
+      }
+      
       const data = {
         room_name: expenseData.roomName,
         category: expenseData.category,

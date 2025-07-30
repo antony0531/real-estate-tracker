@@ -15,7 +15,7 @@ import Reports from './pages/Reports'
 import PWAInstallPrompt from './components/PWAInstallPrompt'
 import NetworkStatus from './components/NetworkStatus'
 
-import { TauriService } from './services/tauri'
+import { DataService } from './services/dataService'
 import { DebugProvider } from './contexts/DebugContext'
 import type { AppInfo } from './types'
 
@@ -31,11 +31,11 @@ export default function App() {
 
         // Initialize the database  
         console.log('Initializing database...')
-        await TauriService.initializeDatabase()
+        await DataService.initializeDatabase()
         console.log('Database initialized successfully')
 
         // Get app info
-        const info = await TauriService.getAppInfo()
+        const info = await DataService.getAppInfo()
         console.log('App initialized successfully:', info)
 
       } catch (err) {

@@ -83,6 +83,14 @@ export class TauriService {
       return await invoke<AppInfo>('get_app_info')
     } catch (error) {
       console.error('Failed to get app info:', error)
+      // Return default for PWA instead of throwing
+      if (Platform.isPWA()) {
+        return {
+          name: 'Real Estate Tracker',
+          version: '0.2.0-pwa',
+          description: 'PWA Mode'
+        };
+      }
       throw new Error(`Failed to get app info: ${error}`)
     }
   }
@@ -101,6 +109,18 @@ export class TauriService {
       return await invoke<string>('initialize_database')
     } catch (error) {
       console.error('Failed to initialize database:', error)
+      // Handle gracefully for PWA
+      if (Platform.isPWA()) {
+        // Try to initialize PWA database as fallback
+        try {
+          const result = await pwaService.initializeDatabase();
+          if (result.success) {
+            return 'PWA database initialized (fallback)';
+          }
+        } catch (e) {
+          console.error('PWA fallback also failed:', e);
+        }
+      }
       throw new Error(`Failed to initialize database: ${error}`)
     }
   }

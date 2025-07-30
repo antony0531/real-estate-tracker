@@ -27,6 +27,11 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // In production (PWA), replace Tauri imports with mocks
+      ...(mode === 'production' ? {
+        '@tauri-apps/api/tauri': path.resolve(__dirname, './src/mocks/tauri-mock.ts'),
+        '@tauri-apps/api': path.resolve(__dirname, './src/mocks/tauri-mock.ts'),
+      } : {})
     },
   },
 

@@ -39,18 +39,22 @@ jobs:
           npm ci
           
       - name: Build PWA
+        env:
+          BUILD_TARGET: pwa
         run: |
           cd desktop
           npm run build
           # Copy PWA files that Vite doesn't handle
-          cp public/service-worker.js dist/
-          cp public/offline.html dist/
+          cp public/service-worker.js dist/ || echo "No service-worker.js found"
+          cp public/offline.html dist/ || echo "No offline.html found"
           # Create .nojekyll file to serve files starting with _
           touch dist/.nojekyll
           # Update base paths in service worker for GitHub Pages
-          if [ "${{ github.ref }}" == "refs/heads/master" ] || [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            sed -i 's|/assets/|/real-estate-tracker/assets/|g' dist/service-worker.js
-            sed -i 's|/icon-|/real-estate-tracker/icon-|g' dist/service-worker.js
+          if [ -f dist/service-worker.js ]; then
+            if [ "${{ github.ref }}" == "refs/heads/master" ] || [ "${{ github.ref }}" == "refs/heads/main" ]; then
+              sed -i 's|/assets/|/real-estate-tracker/assets/|g' dist/service-worker.js
+              sed -i 's|/icon-|/real-estate-tracker/icon-|g' dist/service-worker.js
+            fi
           fi
           
       - name: Setup Pages

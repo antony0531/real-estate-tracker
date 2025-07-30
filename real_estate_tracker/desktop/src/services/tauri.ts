@@ -1,19 +1,11 @@
 // Tauri IPC Service Layer
 // Wraps Tauri commands for easy use in React components
 
-// Check if we're in a Tauri environment before importing
-const isTauriEnvironment = typeof window !== 'undefined' && !!window.__TAURI_IPC__;
-
-// Only import Tauri if we're in the desktop app
-let invoke: any = null;
-if (isTauriEnvironment) {
-  import('@tauri-apps/api/tauri').then((module) => {
-    invoke = module.invoke;
-  });
-}
-
 import { Platform } from './platform'
 import { pwaService } from './pwaService'
+
+// Import will be mocked in production builds via Vite config
+import { invoke } from '@tauri-apps/api/tauri'
 
 // Types matching our Rust backend
 export interface AppInfo {
@@ -88,10 +80,6 @@ export class TauriService {
         return result.data as any;
       }
       
-      if (!invoke) {
-        throw new Error('Tauri not initialized');
-      }
-      
       return await invoke<AppInfo>('get_app_info')
     } catch (error) {
       console.error('Failed to get app info:', error)
@@ -108,10 +96,6 @@ export class TauriService {
         const result = await pwaService.initializeDatabase();
         if (!result.success) throw new Error(result.error);
         return 'PWA database initialized';
-      }
-      
-      if (!invoke) {
-        throw new Error('Tauri not initialized');
       }
       
       return await invoke<string>('initialize_database')

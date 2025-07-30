@@ -3,8 +3,11 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
+  
+  // Base path for GitHub Pages deployment
+  base: mode === 'production' ? '/real-estate-tracker/' : '/',
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
@@ -57,4 +60,4 @@ export default defineConfig({
   
   // PWA support
   publicDir: 'public',
-});
+}));

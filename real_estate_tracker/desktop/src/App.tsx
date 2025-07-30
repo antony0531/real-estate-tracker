@@ -29,7 +29,7 @@ export default function App() {
         setIsLoading(true)
         setError(null)
 
-        // Initialize the database
+        // Initialize the database  
         console.log('Initializing database...')
         await TauriService.initializeDatabase()
         console.log('Database initialized successfully')

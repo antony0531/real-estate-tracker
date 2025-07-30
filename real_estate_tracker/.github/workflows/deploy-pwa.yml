@@ -2,9 +2,9 @@ name: Deploy PWA to GitHub Pages
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ master, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
@@ -48,7 +48,7 @@ jobs:
           # Create .nojekyll file to serve files starting with _
           touch dist/.nojekyll
           # Update base paths in service worker for GitHub Pages
-          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+          if [ "${{ github.ref }}" == "refs/heads/master" ] || [ "${{ github.ref }}" == "refs/heads/main" ]; then
             sed -i 's|/assets/|/real-estate-tracker/assets/|g' dist/service-worker.js
             sed -i 's|/icon-|/real-estate-tracker/icon-|g' dist/service-worker.js
           fi

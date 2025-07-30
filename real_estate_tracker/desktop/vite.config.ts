@@ -6,8 +6,8 @@ import path from "path";
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
   
-  // Base path for GitHub Pages deployment
-  base: mode === 'production' ? '/real-estate-tracker/' : '/',
+  // Base path - set to '/' for Netlify, '/real-estate-tracker/' for GitHub Pages
+  base: '/',
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

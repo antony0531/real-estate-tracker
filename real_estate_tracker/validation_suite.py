@@ -380,7 +380,7 @@ class ValidationSuite:
             # Test version info
             from backend.src import __version__
 
-            self.log_test("Version info available", __version__ == "0.1.0")
+            self.log_test("Version info available", __version__ == "0.2.0")
 
         except Exception as e:
             self.log_test("CLI integration", False, str(e))

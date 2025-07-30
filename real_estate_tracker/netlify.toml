@@ -1,4 +1,18 @@
+# Netlify configuration for Real Estate Tracker PWA
+
+[build]
+  # Build command
+  command = "cd desktop && npm install && npm run build"
+  
+  # Directory that contains the deploy-ready files
+  publish = "desktop/dist"
+
+[build.environment]
+  # Node version for builds
+  NODE_VERSION = "18"
+
+# Redirect all routes to index.html for SPA
 [[redirects]]
-  from = "/"
+  from = "/*"
   to = "/index.html"
   status = 200

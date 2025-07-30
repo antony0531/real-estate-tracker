@@ -22,6 +22,15 @@ class DatabaseManager:
 
         self.db_path = db_path
         self.engine = create_engine(f"sqlite:///{db_path}", echo=False)
+        
+        # Enable foreign key constraints for SQLite
+        from sqlalchemy import event
+        @event.listens_for(self.engine, "connect")
+        def set_sqlite_pragma(dbapi_connection, connection_record):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+        
         self.SessionLocal = sessionmaker(
             autocommit=False, autoflush=False, bind=self.engine
         )

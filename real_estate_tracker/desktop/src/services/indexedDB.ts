@@ -4,22 +4,13 @@ import { Project, Expense, Room } from '@/types';
 const DB_NAME = 'RealEstateTrackerDB';
 const DB_VERSION = 1;
 
-interface DBSchema {
-  projects: Project;
-  expenses: Expense;
-  rooms: Room;
-  pendingSync: {
-    id: string;
-    type: 'project' | 'expense' | 'room';
-    action: 'create' | 'update' | 'delete';
-    data: any;
-    timestamp: number;
-  };
-}
-
 class IndexedDBService {
   private db: IDBDatabase | null = null;
 
+  async open(): Promise<void> {
+    return this.init();
+  }
+  
   async init(): Promise<void> {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);

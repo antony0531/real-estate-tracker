@@ -3,9 +3,12 @@ import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
 
-import App from './App'
 import './index.css'
 import * as serviceWorkerRegistration from './services/serviceWorkerRegistration'
+
+// Conditionally import App based on environment
+const isPWA = !window.__TAURI_IPC__;
+const App = isPWA ? require('./AppPWA').default : require('./App').default;
 
 // Create a query client for React Query
 const queryClient = new QueryClient({
@@ -48,7 +51,7 @@ initializeDarkMode()
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter basename={isPWA ? '/real-estate-tracker' : undefined}>
         <App />
       </BrowserRouter>
     </QueryClientProvider>

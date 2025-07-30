@@ -44,17 +44,23 @@ jobs:
         run: |
           cd desktop
           npm run build
+          # Rename indexPWA.html to index.html if it exists
+          if [ -f dist/indexPWA.html ]; then
+            mv dist/indexPWA.html dist/index.html
+          fi
           # Copy PWA files that Vite doesn't handle
           cp public/service-worker.js dist/ || echo "No service-worker.js found"
           cp public/offline.html dist/ || echo "No offline.html found"
+          cp public/manifest.json dist/ || echo "No manifest.json found"
+          # Copy icons
+          cp public/icon*.png dist/ || echo "No icons found"
+          cp public/icon.svg dist/ || echo "No icon.svg found"
           # Create .nojekyll file to serve files starting with _
           touch dist/.nojekyll
           # Update base paths in service worker for GitHub Pages
           if [ -f dist/service-worker.js ]; then
-            if [ "${{ github.ref }}" == "refs/heads/master" ] || [ "${{ github.ref }}" == "refs/heads/main" ]; then
-              sed -i 's|/assets/|/real-estate-tracker/assets/|g' dist/service-worker.js
-              sed -i 's|/icon-|/real-estate-tracker/icon-|g' dist/service-worker.js
-            fi
+            sed -i 's|/assets/|/real-estate-tracker/assets/|g' dist/service-worker.js
+            sed -i 's|/icon-|/real-estate-tracker/icon-|g' dist/service-worker.js
           fi
           
       - name: Setup Pages

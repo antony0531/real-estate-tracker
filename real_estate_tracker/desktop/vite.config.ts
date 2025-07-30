@@ -58,7 +58,7 @@ export default defineConfig(({ mode }) => ({
     // Copy service worker to output
     rollupOptions: {
       input: {
-        main: path.resolve(__dirname, mode === 'production' ? 'indexPWA.html' : 'index.html'),
+        main: path.resolve(__dirname, 'index.html'),
       },
     },
   },

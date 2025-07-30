@@ -1,0 +1,60 @@
+<\!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RE Tracker</title>
+<style>
+body{font-family:Arial;margin:20px;background:#f0f0f0}
+.container{max-width:600px;margin:0 auto;background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1)}
+h1{color:#333;text-align:center}
+.form{background:#f9f9f9;padding:15px;border-radius:5px;margin-bottom:20px}
+input,select{width:100%;padding:8px;margin:5px 0;border:1px solid #ddd;border-radius:4px}
+button{background:#007bff;color:white;border:none;padding:10px 15px;border-radius:4px;cursor:pointer;width:100%}
+button:hover{background:#0056b3}
+.project{background:#f9f9f9;padding:10px;margin:10px 0;border-radius:4px;border-left:4px solid #007bff}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px}
+.stat{background:#e9ecef;padding:10px;border-radius:4px;text-align:center}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Real Estate Tracker</h1>
+<div class="stats">
+<div class="stat"><strong id="count">0</strong><br>Projects</div>
+<div class="stat"><strong id="budget">$0</strong><br>Budget</div>
+<div class="stat"><strong id="spent">$0</strong><br>Spent</div>
+</div>
+<div class="form">
+<input id="name" placeholder="Project Name">
+<input id="amt" type="number" placeholder="Budget">
+<select id="type"><option>Single Family</option><option>Multi Family</option><option>Commercial</option></select>
+<button onclick="add()">Add Project</button>
+</div>
+<div id="list"></div>
+</div>
+<script>
+const K="reProj";
+function load(){return JSON.parse(localStorage.getItem(K)||"[]")}
+function save(d){localStorage.setItem(K,JSON.stringify(d));show()}
+function add(){
+const n=document.getElementById("name").value;
+const a=parseFloat(document.getElementById("amt").value)||0;
+const t=document.getElementById("type").value;
+if(\!n)return alert("Enter name");
+const p=load();
+p.push({id:Date.now(),name:n,budget:a,type:t,spent:0});
+save(p);
+document.getElementById("name").value="";
+document.getElementById("amt").value="";
+}
+function show(){
+const p=load();
+document.getElementById("count").textContent=p.length;
+document.getElementById("budget").textContent="$"+p.reduce((s,x)=>s+x.budget,0).toLocaleString();
+document.getElementById("spent").textContent="$"+p.reduce((s,x)=>s+x.spent,0).toLocaleString();
+document.getElementById("list").innerHTML=p.length?p.map(x=>`<div class="project"><strong>${x.name}</strong><br>${x.type} - Budget: $${x.budget.toLocaleString()}</div>`).join(""):"<p style=\"text-align:center;color:#666\">No projects yet</p>";
+}
+show();
+</script>
+</body>
+</html>

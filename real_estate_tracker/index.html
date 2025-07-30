@@ -230,7 +230,9 @@
         
         // Make it installable
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').catch(() => {});
+            navigator.serviceWorker.register('sw.js').catch(() => {
+                // Service worker is optional
+            });
         }
     </script>
 </body>

@@ -8,6 +8,14 @@
 
 > **A comprehensive solution for real estate investors to track renovation budgets, capture field data, and analyze project finances across desktop and mobile platforms.**
 
+## 📚 Documentation
+
+- 🚀 **[Quick Start Guide](QUICK_START.md)** - Get up and running in 5 minutes
+- 📖 **[User Guide](USER_GUIDE.md)** - Complete documentation for all features
+- ❓ **[FAQ](FAQ.md)** - Frequently asked questions and troubleshooting
+- 👨‍💻 **[Developer Guide](DEVELOPER_GUIDE.md)** - For contributors and developers
+- 📱 **[PWA Implementation](PWA_IMPLEMENTATION.md)** - Technical details of mobile PWA
+
 ---
 
 ## 🎯 **What This Solves**
@@ -103,16 +111,27 @@ graph TB
 ## 🚀 **Quick Start**
 
 ### **For End Users**
+
+#### **Mobile (Recommended)**
 ```bash
-# Download and install the desktop app
+# Visit on your phone:
+https://your-domain.github.io/real-estate-tracker
+
+# iPhone: Tap Share → Add to Home Screen
+# Android: Tap Menu → Add to Home screen
+```
+
+#### **Desktop**
+```bash
+# Download from releases:
 # Windows: real-estate-tracker-setup.exe
 # macOS: real-estate-tracker.dmg
 # Linux: real-estate-tracker.AppImage
-
-# Or use the CLI version
-pip install real-estate-tracker
-real-estate-tracker init
 ```
+
+📖 **See [Quick Start Guide](QUICK_START.md) for detailed instructions**
+
+> **Mobile Users**: The app is available as a Progressive Web App (PWA) - no app store needed! Just visit the URL and "Add to Home Screen"
 
 ### **For Developers**
 ```bash
@@ -141,10 +160,11 @@ python -m src.cli project list
 ### **✅ Currently Available**
 - **CLI Interface**: Cross-platform Python command-line tool
 - **Desktop App**: Native apps for Windows, macOS, and Linux (in development)
+- **Mobile PWA**: Progressive Web App for iOS and Android (free, no app store)
 
 ### **🔄 In Development**  
-- **Mobile Apps**: iOS and Android with offline sync
-- **Web Interface**: Browser-based dashboard for remote access
+- **Enhanced Mobile Features**: Advanced offline sync and camera OCR
+- **P2P Sync**: Direct device-to-device sync without servers
 - **API Server**: RESTful sync service for multi-device coordination
 
 ### **📋 Planned Features**
@@ -191,7 +211,11 @@ python -m src.cli project list
 | **[FRONTEND_SETUP.md](FRONTEND_SETUP.md)** | 🆕 Frontend development guide | Frontend developers |
 | **[DESKTOP_PLAN.md](DESKTOP_PLAN.md)** | Desktop application roadmap | Frontend developers |
 | **[MOBILE_STRATEGY.md](MOBILE_STRATEGY.md)** | Mobile development strategy | Mobile developers |
+| **[PWA_IMPLEMENTATION.md](PWA_IMPLEMENTATION.md)** | PWA technical implementation | Mobile developers |
 | **[TESTING.md](TESTING.md)** | Testing procedures and guidelines | QA & developers |
+| **[USER_GUIDE.md](USER_GUIDE.md)** | Complete user documentation | End users |
+| **[QUICK_START.md](QUICK_START.md)** | 5-minute quick start guide | New users |
+| **[FAQ.md](FAQ.md)** | Frequently asked questions | All users |
 
 ---
 
@@ -232,18 +256,21 @@ python cli_test_workflow.py       # Basic workflow tests
 - [x] Cross-platform compatibility (Windows/macOS/Linux)
 
 ### **📅 Phase 2: Desktop Application** (🔄 In Progress)
-- [ ] Tauri desktop app with React frontend
-- [ ] Professional UI with charts and analytics
-- [ ] Python CLI integration via IPC
+- [x] Tauri desktop app with React frontend
+- [x] Professional UI with charts and analytics
+- [x] Python CLI integration via IPC
 - [ ] Native installers for all platforms
 - [ ] System tray integration and notifications
+- [x] Progressive Web App (PWA) for mobile
 
-### **📅 Phase 3: Mobile Applications** (📋 Planned)
-- [ ] React Native app with Expo
-- [ ] Camera integration with OCR
+### **📅 Phase 3: Mobile Applications** (🔄 In Progress)
+- [x] Progressive Web App (PWA) implementation
+- [x] Camera integration for photos
+- [x] Offline-first with service worker
+- [ ] Camera OCR for receipts
 - [ ] GPS tagging and location services
 - [ ] Voice memo recording and transcription
-- [ ] Offline-first local storage with sync queue
+- [ ] IndexedDB for local storage
 
 ### **📅 Phase 4: Sync Infrastructure** (📋 Planned)
 - [ ] FastAPI server with RESTful endpoints

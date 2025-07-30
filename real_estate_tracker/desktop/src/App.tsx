@@ -12,6 +12,8 @@ import ModernSettings from './pages/ModernSettings'
 import Debug from './pages/Debug'
 import Rooms from './pages/Rooms'
 import Reports from './pages/Reports'
+import PWAInstallPrompt from './components/PWAInstallPrompt'
+import NetworkStatus from './components/NetworkStatus'
 
 import { TauriService } from './services/tauri'
 import { DebugProvider } from './contexts/DebugContext'
@@ -154,6 +156,12 @@ export default function App() {
           },
         }}
       />
+      
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt />
+      
+      {/* Network Status Indicator */}
+      <NetworkStatus />
     </DebugProvider>
   )
 } 

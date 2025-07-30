@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom'
 
 import App from './App'
 import './index.css'
+import * as serviceWorkerRegistration from './services/serviceWorkerRegistration'
 
 // Create a query client for React Query
 const queryClient = new QueryClient({
@@ -52,4 +53,21 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       </BrowserRouter>
     </QueryClientProvider>
   </React.StrictMode>
-) 
+)
+
+// Register service worker for PWA functionality
+serviceWorkerRegistration.register({
+  onSuccess: (registration) => {
+    console.log('✅ Service Worker registered successfully:', registration)
+  },
+  onUpdate: (registration) => {
+    console.log('🔄 New content available! Please refresh.', registration)
+    // You could show a toast notification here
+  },
+  onError: (error) => {
+    console.error('❌ Service Worker registration failed:', error)
+  }
+})
+
+// Prompt PWA install
+serviceWorkerRegistration.promptInstall() 

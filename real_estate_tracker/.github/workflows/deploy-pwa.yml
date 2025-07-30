@@ -43,24 +43,24 @@ jobs:
           BUILD_TARGET: pwa
         run: |
           cd desktop
-          npm run build
-          # Rename indexPWA.html to index.html if it exists
-          if [ -f dist/indexPWA.html ]; then
-            mv dist/indexPWA.html dist/index.html
-          fi
-          # Copy PWA files that Vite doesn't handle
-          cp public/service-worker.js dist/ || echo "No service-worker.js found"
-          cp public/offline.html dist/ || echo "No offline.html found"
-          cp public/manifest.json dist/ || echo "No manifest.json found"
-          # Copy icons
-          cp public/icon*.png dist/ || echo "No icons found"
-          cp public/icon.svg dist/ || echo "No icon.svg found"
+          # For now, just use the static public folder as our PWA
+          mkdir -p dist
+          cp -r public/* dist/
           # Create .nojekyll file to serve files starting with _
           touch dist/.nojekyll
-          # Update base paths in service worker for GitHub Pages
+          # Update paths for GitHub Pages subdirectory
+          sed -i 's|"./"|"/real-estate-tracker/"|g' dist/index.html
+          sed -i 's|"manifest.json"|"/real-estate-tracker/manifest.json"|g' dist/index.html
+          sed -i 's|"service-worker.js"|"/real-estate-tracker/service-worker.js"|g' dist/index.html
+          # Update manifest.json paths
+          if [ -f dist/manifest.json ]; then
+            sed -i 's|"./"|"/real-estate-tracker/"|g' dist/manifest.json
+            sed -i 's|"icon-|"/real-estate-tracker/icon-|g' dist/manifest.json
+          fi
+          # Update service worker paths
           if [ -f dist/service-worker.js ]; then
-            sed -i 's|/assets/|/real-estate-tracker/assets/|g' dist/service-worker.js
-            sed -i 's|/icon-|/real-estate-tracker/icon-|g' dist/service-worker.js
+            sed -i "s|'\./'|'/real-estate-tracker/'|g" dist/service-worker.js
+            sed -i "s|'\.\/|'/real-estate-tracker/|g" dist/service-worker.js
           fi
           
       - name: Setup Pages

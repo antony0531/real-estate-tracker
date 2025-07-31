@@ -3,11 +3,13 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
+import { Dashboard } from './pages/Dashboard';
 import { Home } from './pages/Home';
 import { MyWork } from './pages/MyWork';
 import { Notifications } from './pages/Notifications';
 import { More } from './pages/More';
 import { ProjectsDashboard } from './pages/ProjectsDashboard';
+import { ProjectDashboard } from './pages/ProjectDashboard';
 import { ProjectOverview } from './pages/ProjectOverview';
 import { ProjectExpenses } from './pages/ProjectExpenses';
 import { Header } from './components/Header';
@@ -36,13 +38,15 @@ function App() {
                     <Header />
                   </div>
                   <Routes>
-                    <Route path="/" element={<Home />} />
+                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/home" element={<Home />} />
                     <Route path="/my-work" element={<MyWork />} />
                     <Route path="/notifications" element={<Notifications />} />
                     <Route path="/more" element={<More />} />
                     <Route path="/projects" element={<ProjectsDashboard />} />
-                    <Route path="/project/:id/overview" element={<ProjectOverview />} />
+                    <Route path="/project/:id/overview" element={<ProjectDashboard />} />
                     <Route path="/project/:id/expenses" element={<ProjectExpenses />} />
+                    <Route path="/dashboard" element={<Navigate to="/" replace />} />
                   </Routes>
                   <MobileNav />
                   <QuickAddButton />

@@ -1,4 +1,4 @@
-import express, { Application, Request, Response, NextFunction } from 'express';
+import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -42,7 +42,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/', rateLimiter);
 
 // Health check endpoint
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -61,7 +61,7 @@ app.use('/api/users', userRoutes);
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // 404 handler
-app.use('*', (req: Request, res: Response) => {
+app.use('*', (_req: Request, res: Response) => {
   res.status(404).json({
     success: false,
     message: 'Endpoint not found'

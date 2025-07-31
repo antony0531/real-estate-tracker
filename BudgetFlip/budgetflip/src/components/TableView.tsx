@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Calendar, DollarSign, User, CheckSquare, Square, MoreHorizontal, Plus } from 'lucide-react';
+import { ChevronDown, ChevronUp, Calendar, DollarSign, User, CheckSquare, Square, MoreHorizontal, Plus, Trash2, Edit } from 'lucide-react';
 
 interface Project {
   id: string;
@@ -22,18 +22,21 @@ interface TableViewProps {
   onProjectUpdate: (projectId: string, updates: Partial<Project>) => void;
   onProjectClick?: (projectId: string) => void;
   onAddProject?: () => void;
+  onProjectDelete?: (projectId: string) => void;
 }
 
 type SortField = 'name' | 'status' | 'priority' | 'owner' | 'budget' | 'spent' | 'dueDate' | 'progress';
 type SortDirection = 'asc' | 'desc';
 
-export function TableView({ projects, onProjectUpdate, onProjectClick, onAddProject }: TableViewProps) {
+export function TableView({ projects, onProjectUpdate, onProjectClick, onAddProject, onProjectDelete }: TableViewProps) {
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [editingCell, setEditingCell] = useState<{ projectId: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
+  const [showMenuFor, setShowMenuFor] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const statusOptions = [
     { value: 'planning', label: 'Planning', color: 'bg-gray-100 text-gray-700' },
@@ -51,9 +54,27 @@ export function TableView({ projects, onProjectUpdate, onProjectClick, onAddProj
   useEffect(() => {
     if (editingCell && inputRef.current) {
       inputRef.current.focus();
-      inputRef.current.select();
+      // Only call select() on input elements, not select elements
+      if (inputRef.current.tagName === 'INPUT') {
+        inputRef.current.select();
+      }
     }
   }, [editingCell]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenuFor(null);
+      }
+    };
+
+    if (showMenuFor) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showMenuFor]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -275,7 +296,7 @@ export function TableView({ projects, onProjectUpdate, onProjectClick, onAddProj
                     />
                   ) : (
                     <button
-                      onClick={() => startEditing(project.id, 'name', project.name)}
+                      onClick={() => onProjectClick?.(project.id)}
                       className="text-left font-medium text-gray-900 hover:text-primary-600 transition-colors"
                     >
                       {project.name}
@@ -430,12 +451,54 @@ export function TableView({ projects, onProjectUpdate, onProjectClick, onAddProj
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <button
-                    onClick={() => onProjectClick?.(project.id)}
-                    className="p-1 hover:bg-gray-200 rounded transition-colors"
-                  >
-                    <MoreHorizontal className="w-4 h-4 text-gray-400" />
-                  </button>
+                  <div className="relative" ref={showMenuFor === project.id ? menuRef : null}>
+                    <button
+                      onClick={() => setShowMenuFor(showMenuFor === project.id ? null : project.id)}
+                      className="p-1 hover:bg-gray-200 rounded transition-colors"
+                      title="More actions"
+                    >
+                      <MoreHorizontal className="w-4 h-4 text-gray-400" />
+                    </button>
+                    {showMenuFor === project.id && (
+                      <div className="absolute right-0 top-8 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[150px]">
+                        <button
+                          onClick={() => {
+                            onProjectClick?.(project.id);
+                            setShowMenuFor(null);
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                          View Details
+                        </button>
+                        <button
+                          onClick={() => {
+                            startEditing(project.id, 'name', project.name);
+                            setShowMenuFor(null);
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                        >
+                          <Edit className="w-4 h-4" />
+                          Rename Project
+                        </button>
+                        {onProjectDelete && (
+                          <>
+                            <div className="border-t border-gray-100 my-1"></div>
+                            <button
+                              onClick={() => {
+                                onProjectDelete(project.id);
+                                setShowMenuFor(null);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete Project
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

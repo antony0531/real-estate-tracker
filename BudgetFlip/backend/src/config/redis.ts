@@ -1,7 +1,7 @@
 import { createClient, RedisClientType } from 'redis';
 import { logger } from '../utils/logger';
 
-let redisClient: RedisClientType;
+let redisClient: RedisClientType | undefined;
 
 export const connectRedis = async (): Promise<void> => {
   try {
@@ -72,4 +72,4 @@ export const cache = {
   }
 };
 
-export default redisClient;
+export default redisClient!;

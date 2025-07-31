@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
-import { Calendar, DollarSign } from 'lucide-react';
+import { Calendar, DollarSign, MoreVertical, Trash2 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 
 interface ProjectCardProps {
   id: string;
+  displayId?: string;
   name: string;
   status: 'planning' | 'in_progress' | 'review' | 'completed';
   priority: 'low' | 'medium' | 'high';
@@ -15,9 +17,27 @@ interface ProjectCardProps {
   spent: number;
   dueDate: string;
   progress?: number;
+  onDelete?: (id: string) => void;
 }
 
-export function ProjectCard({ id, name, status, priority, owner, budget, spent, dueDate, progress }: ProjectCardProps) {
+export function ProjectCard({ id, displayId, name, status, priority, owner, budget, spent, dueDate, progress, onDelete }: ProjectCardProps) {
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showMenu]);
   const statusConfig = {
     planning: { label: 'Planning', color: 'bg-gray-500', textColor: 'text-white' },
     in_progress: { label: 'In Progress', color: 'bg-orange-500', textColor: 'text-white' },
@@ -44,25 +64,53 @@ export function ProjectCard({ id, name, status, priority, owner, budget, spent, 
   };
 
   return (
-    <Link to={`/project/${id}/overview`}>
-      <div className="bg-white rounded-lg shadow-monday border border-gray-200 p-4 md:p-6 hover:shadow-monday-hover transition-all duration-200 hover:border-gray-300 cursor-pointer">
-        <div className="flex items-start justify-between mb-3 md:mb-4">
-          <div className="flex items-center gap-2 md:gap-3">
-            <div className={`w-10 h-10 md:w-12 md:h-12 ${getProjectColor(name)} rounded-lg flex items-center justify-center text-white font-bold text-base md:text-lg`}>
-              {name.substring(0, 2).toUpperCase()}
-            </div>
-            <div className="flex-1">
-              <h3 className="text-base md:text-lg font-semibold text-text-primary line-clamp-1">{name}</h3>
-              <p className="text-xs md:text-sm text-text-secondary">ID: #{id}</p>
-            </div>
+    <div className="bg-white rounded-lg shadow-monday border border-gray-200 p-4 md:p-6 hover:shadow-monday-hover transition-all duration-200 hover:border-gray-300">
+      <div className="flex items-start justify-between mb-3 md:mb-4">
+        <Link to={`/project/${id}/overview`} className="flex items-center gap-2 md:gap-3 flex-1">
+          <div className={`w-10 h-10 md:w-12 md:h-12 ${getProjectColor(name)} rounded-lg flex items-center justify-center text-white font-bold text-base md:text-lg`}>
+            {name.substring(0, 2).toUpperCase()}
           </div>
-          {/* Mobile: Show status badge at top right */}
+          <div className="flex-1">
+            <h3 className="text-base md:text-lg font-semibold text-text-primary line-clamp-1 hover:text-primary-600">{name}</h3>
+            <p className="text-xs md:text-sm text-text-secondary">{displayId || `ID: #${id.substring(0, 8)}`}</p>
+          </div>
+        </Link>
+        {/* Actions menu */}
+        <div className="relative flex items-center gap-2" ref={menuRef}>
+          {/* Mobile: Show status badge */}
           <div className="md:hidden">
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusConfig[status].color} ${statusConfig[status].textColor}`}>
               {statusConfig[status].label}
             </span>
           </div>
+          {onDelete && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                setShowMenu(!showMenu);
+              }}
+              className="p-1 hover:bg-gray-100 rounded transition-colors"
+            >
+              <MoreVertical className="w-4 h-4 text-gray-500" />
+            </button>
+          )}
+          {showMenu && (
+            <div className="absolute right-0 top-8 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[150px]">
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  onDelete(id);
+                  setShowMenu(false);
+                }}
+                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete Project
+              </button>
+            </div>
+          )}
         </div>
+      </div>
 
         <div className="space-y-2 md:space-y-3">
           {/* Status - Hidden on mobile (shown above) */}
@@ -114,6 +162,5 @@ export function ProjectCard({ id, name, status, priority, owner, budget, spent, 
           </div>
         </div>
       </div>
-    </Link>
   );
 }

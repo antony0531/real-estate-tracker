@@ -7,20 +7,20 @@ import { logger } from '../utils/logger';
 
 // Generate JWT token
 const generateToken = (user: any): string => {
-  return jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
-    process.env.JWT_SECRET || 'secret',
-    { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
-  );
+  const payload = { id: user.id, email: user.email, role: user.role };
+  const secret = process.env.JWT_SECRET || 'secret';
+  const expiresIn = process.env.JWT_EXPIRES_IN || '15m';
+  
+  return jwt.sign(payload, secret, { expiresIn } as any);
 };
 
 // Generate refresh token
 const generateRefreshToken = (user: any): string => {
-  return jwt.sign(
-    { id: user.id },
-    process.env.JWT_REFRESH_SECRET || 'refresh-secret',
-    { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
-  );
+  const payload = { id: user.id };
+  const secret = process.env.JWT_REFRESH_SECRET || 'refresh-secret';
+  const expiresIn = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+  
+  return jwt.sign(payload, secret, { expiresIn } as any);
 };
 
 // Register new user
@@ -151,7 +151,7 @@ export const refreshToken = asyncHandler(async (req: Request, res: Response, nex
 });
 
 // Logout
-export const logout = asyncHandler(async (req: Request, res: Response) => {
+export const logout = asyncHandler(async (_req: Request, res: Response) => {
   // In a production app, you might want to blacklist the token in Redis
   res.json({
     success: true,

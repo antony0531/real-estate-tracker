@@ -44,13 +44,23 @@ docker-compose down
 - ✅ JWT authentication
 - ✅ Comprehensive documentation
 
+### Completed Backend Tasks (Update 2)
+- ✅ Authentication API fully implemented (register, login, refresh, logout)
+- ✅ Projects controller with full CRUD operations
+- ✅ Expenses controller with full CRUD operations
+- ✅ Project member management endpoints
+- ✅ Expense statistics endpoint
+- ✅ Request validation on all endpoints
+- ✅ API test files created (test-api.http and test-api.sh)
+
 ### Pending Tasks
+- Test all API endpoints with Docker
 - Connect frontend to backend API
-- Implement remaining API endpoints
+- Implement authentication flow in frontend
+- Replace mock data with real API calls
 - Add file upload for receipts
-- Deploy to production
+- Deploy to production (free tier)
 - Add real-time updates
-- Implement data export features
 
 ### Hotel WiFi Issue
 - Couldn't test on mobile due to client isolation

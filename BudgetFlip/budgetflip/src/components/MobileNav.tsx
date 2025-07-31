@@ -1,9 +1,9 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Clock, Bell, MoreHorizontal } from 'lucide-react';
+import { LayoutGrid, Clock, Bell, MoreHorizontal } from 'lucide-react';
 
 const navItems = [
-  { path: '/', icon: Home, label: 'Home' },
+  { path: '/', icon: LayoutGrid, label: 'Dashboard' },
   { path: '/my-work', icon: Clock, label: 'My work' },
   { path: '/notifications', icon: Bell, label: 'Notifications' },
   { path: '/more', icon: MoreHorizontal, label: 'More' }

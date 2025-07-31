@@ -1,0 +1,137 @@
+### BudgetFlip API Tests
+### You can use this file with VS Code REST Client extension or similar tools
+
+@baseUrl = http://localhost:3000/api
+@contentType = application/json
+
+### 1. Register a new user
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "test@budgetflip.com",
+  "password": "password123",
+  "name": "Test User"
+}
+
+### 2. Login
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "test@budgetflip.com",
+  "password": "password123"
+}
+
+### Save the token from login response
+@authToken = {{login.response.body.data.token}}
+
+### 3. Create a project
+# @name createProject
+POST {{baseUrl}}/projects
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "name": "123 Main Street Flip",
+  "address": "123 Main St, Anytown, ST 12345",
+  "budget": 150000,
+  "start_date": "2025-08-01",
+  "target_end_date": "2025-12-31",
+  "status": "planning",
+  "priority": "high",
+  "description": "Complete renovation of 3-bedroom house"
+}
+
+### Save project ID
+@projectId = {{createProject.response.body.data.id}}
+
+### 4. Get all projects
+GET {{baseUrl}}/projects
+Authorization: Bearer {{authToken}}
+
+### 5. Get single project
+GET {{baseUrl}}/projects/{{projectId}}
+Authorization: Bearer {{authToken}}
+
+### 6. Update project
+PUT {{baseUrl}}/projects/{{projectId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "status": "in_progress",
+  "budget": 175000
+}
+
+### 7. Get expense categories
+GET {{baseUrl}}/expenses/categories
+Authorization: Bearer {{authToken}}
+
+### 8. Create an expense
+# @name createExpense
+POST {{baseUrl}}/expenses
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "project_id": "{{projectId}}",
+  "amount": 5000,
+  "vendor": "Home Depot",
+  "description": "Kitchen cabinets and hardware",
+  "date": "2025-08-15",
+  "payment_method": "credit_card",
+  "status": "paid"
+}
+
+### Save expense ID
+@expenseId = {{createExpense.response.body.data.id}}
+
+### 9. Get project expenses
+GET {{baseUrl}}/expenses/project/{{projectId}}
+Authorization: Bearer {{authToken}}
+
+### 10. Get project expense statistics
+GET {{baseUrl}}/expenses/project/{{projectId}}/stats
+Authorization: Bearer {{authToken}}
+
+### 11. Update expense
+PUT {{baseUrl}}/expenses/{{expenseId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "amount": 5500,
+  "description": "Kitchen cabinets, hardware, and installation"
+}
+
+### 12. Add project member
+POST {{baseUrl}}/projects/{{projectId}}/members
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "email": "contractor@example.com",
+  "role": "member"
+}
+
+### 13. Delete expense
+DELETE {{baseUrl}}/expenses/{{expenseId}}
+Authorization: Bearer {{authToken}}
+
+### 14. Delete project
+DELETE {{baseUrl}}/projects/{{projectId}}
+Authorization: Bearer {{authToken}}
+
+### 15. Refresh token example
+POST {{baseUrl}}/auth/refresh
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "{{login.response.body.data.refreshToken}}"
+}
+
+### 16. Logout
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{authToken}}

@@ -1,22 +1,83 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ProjectCard } from '../components/ProjectCard';
 import { KanbanBoard } from '../components/KanbanBoard';
 import { TableView } from '../components/TableView';
 import { CalendarView } from '../components/CalendarView';
 import { AdvancedFilter } from '../components/AdvancedFilter';
 import { ViewSwitcher, ViewMode } from '../components/ViewSwitcher';
-import { Plus, Search, Filter } from 'lucide-react';
+import { ProjectModal } from '../components/ProjectModal';
+import { Plus, Search, Filter, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { projectsAPI, type Project as APIProject } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 export function ProjectsDashboard() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAdvancedFilter, setShowAdvancedFilter] = useState(false);
+  const [showProjectModal, setShowProjectModal] = useState(false);
   const [activeFilters, setActiveFilters] = useState<any>(null);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
-  // Mock data for projects
-  const [projects, setProjects] = useState([
+  // Load projects from API
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  const loadProjects = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const apiProjects = await projectsAPI.getAll();
+      
+      // Transform API projects to match our UI format
+      const transformedProjects = apiProjects.map((project: APIProject) => ({
+        id: project.id,
+        displayId: project.display_id,
+        name: project.name,
+        status: project.status || 'planning',
+        priority: project.priority || 'medium',
+        owner: { 
+          name: user?.name || 'Unknown', 
+          initials: user?.initials || 'UK', 
+          color: 'bg-blue-500' 
+        },
+        budget: Number(project.budget) || 0,
+        spent: Number(project.total_spent) || 0,
+        dueDate: project.target_end_date || new Date().toISOString(),
+        progress: calculateProgress(project),
+        description: project.description,
+        address: project.address,
+        startDate: project.start_date,
+        members: project.members || []
+      }));
+      
+      setProjects(transformedProjects);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load projects');
+      console.error('Error loading projects:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const calculateProgress = (project: APIProject): number => {
+    if (project.status === 'completed') return 100;
+    if (project.status === 'planning') return 0;
+    if (project.budget && project.total_spent) {
+      return Math.min(Math.round((Number(project.total_spent) / Number(project.budget)) * 100), 100);
+    }
+    return project.status === 'in_progress' ? 50 : 75;
+  };
+
+  // Example mock data for development fallback
+  const mockProjects = [
     {
       id: '123',
       name: 'Jersey City Renovation',
@@ -83,7 +144,7 @@ export function ProjectsDashboard() {
       dueDate: '2024-09-01',
       progress: 0
     }
-  ]);
+  ];
 
   // Get unique owners for filter
   const uniqueOwners = Array.from(new Set(projects.map(p => JSON.stringify(p.owner))))
@@ -139,35 +200,86 @@ export function ProjectsDashboard() {
   const activeProjects = projects.filter(p => p.status === 'in_progress').length;
   const completedProjects = projects.filter(p => p.status === 'completed').length;
 
-  const handleProjectMove = (projectId: string, newStatus: any) => {
-    setProjects(prev => prev.map(project => 
-      project.id === projectId ? { ...project, status: newStatus } : project
-    ));
+  const handleProjectMove = async (projectId: string, newStatus: any) => {
+    try {
+      await projectsAPI.update(projectId, { status: newStatus });
+      setProjects(prev => prev.map(project => 
+        project.id === projectId ? { ...project, status: newStatus } : project
+      ));
+    } catch (err) {
+      console.error('Error updating project status:', err);
+      setError('Failed to update project status');
+    }
   };
 
   const handleProjectClick = (projectId: string) => {
     navigate(`/project/${projectId}/overview`);
   };
 
-  const handleProjectUpdate = (projectId: string, updates: any) => {
-    setProjects(prev => prev.map(project => 
-      project.id === projectId ? { ...project, ...updates } : project
-    ));
+  const handleProjectUpdate = async (projectId: string, updates: any) => {
+    try {
+      // Map UI fields to API fields
+      const apiUpdates: any = {};
+      if (updates.name !== undefined) apiUpdates.name = updates.name;
+      if (updates.budget !== undefined) apiUpdates.budget = updates.budget;
+      if (updates.status !== undefined) apiUpdates.status = updates.status;
+      if (updates.priority !== undefined) apiUpdates.priority = updates.priority;
+      if (updates.dueDate !== undefined) apiUpdates.target_end_date = updates.dueDate;
+      if (updates.description !== undefined) apiUpdates.description = updates.description;
+      
+      await projectsAPI.update(projectId, apiUpdates);
+      setProjects(prev => prev.map(project => 
+        project.id === projectId ? { ...project, ...updates } : project
+      ));
+    } catch (err) {
+      console.error('Error updating project:', err);
+      setError('Failed to update project');
+    }
   };
 
-  const handleAddProject = () => {
-    const newProject = {
-      id: `new-${Date.now()}`,
-      name: 'New Project',
-      status: 'planning' as const,
-      priority: 'medium' as const,
-      owner: { name: 'Unassigned', initials: 'UN', color: 'bg-gray-500' },
-      budget: 0,
-      spent: 0,
-      dueDate: new Date().toISOString().split('T')[0],
-      progress: 0
+  const handleProjectCreated = (newProject: APIProject) => {
+    // Transform and add to local state
+    const transformedProject = {
+      id: newProject.id,
+      displayId: newProject.display_id,
+      name: newProject.name,
+      status: newProject.status || 'planning',
+      priority: newProject.priority || 'medium',
+      owner: { 
+        name: user?.name || 'Unknown', 
+        initials: user?.initials || 'UK', 
+        color: 'bg-blue-500' 
+      },
+      budget: Number(newProject.budget) || 0,
+      spent: Number(newProject.total_spent) || 0,
+      dueDate: newProject.target_end_date || new Date().toISOString(),
+      progress: calculateProgress(newProject),
+      description: newProject.description,
+      address: newProject.address,
+      startDate: newProject.start_date,
+      members: newProject.members || []
     };
-    setProjects(prev => [...prev, newProject]);
+    
+    setProjects(prev => [...prev, transformedProject]);
+    navigate(`/project/${newProject.id}/overview`);
+  };
+
+  const handleDeleteProject = async () => {
+    if (!projectToDelete) return;
+    
+    try {
+      await projectsAPI.delete(projectToDelete);
+      setProjects(prev => prev.filter(p => p.id !== projectToDelete));
+      setShowDeleteConfirm(false);
+      setProjectToDelete(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete project');
+    }
+  };
+
+  const confirmDeleteProject = (projectId: string) => {
+    setProjectToDelete(projectId);
+    setShowDeleteConfirm(true);
   };
 
   return (
@@ -178,6 +290,21 @@ export function ProjectsDashboard() {
           <h1 className="text-2xl md:text-3xl font-bold text-text-primary">All Projects</h1>
           <p className="text-sm md:text-base text-text-secondary mt-1">Manage and track all your renovation projects</p>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
+            {error}
+          </div>
+        )}
+
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+          </div>
+        ) : (
+          <>
 
         {/* Summary Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
@@ -235,7 +362,10 @@ export function ProjectsDashboard() {
           </div>
 
           {/* New Project Button */}
-          <button className="flex items-center gap-2 px-3 md:px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors text-sm md:text-base w-full sm:w-auto justify-center">
+          <button 
+            onClick={() => setShowProjectModal(true)}
+            className="flex items-center gap-2 px-3 md:px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors text-sm md:text-base w-full sm:w-auto justify-center"
+          >
             <Plus className="w-4 h-4" />
             <span>New Project</span>
           </button>
@@ -245,7 +375,11 @@ export function ProjectsDashboard() {
         {viewMode === 'grid' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {filteredProjects.map(project => (
-              <ProjectCard key={project.id} {...project} />
+              <ProjectCard 
+                key={project.id} 
+                {...project} 
+                onDelete={confirmDeleteProject}
+              />
             ))}
           </div>
         )}
@@ -263,7 +397,8 @@ export function ProjectsDashboard() {
             projects={filteredProjects}
             onProjectUpdate={handleProjectUpdate}
             onProjectClick={handleProjectClick}
-            onAddProject={handleAddProject}
+            onAddProject={() => setShowProjectModal(true)}
+            onProjectDelete={confirmDeleteProject}
           />
         )}
 
@@ -271,20 +406,7 @@ export function ProjectsDashboard() {
           <CalendarView 
             projects={filteredProjects}
             onProjectClick={handleProjectClick}
-            onAddProject={(date) => {
-              const newProject = {
-                id: `new-${Date.now()}`,
-                name: 'New Project',
-                status: 'planning' as const,
-                priority: 'medium' as const,
-                owner: { name: 'Unassigned', initials: 'UN', color: 'bg-gray-500' },
-                budget: 0,
-                spent: 0,
-                dueDate: date,
-                progress: 0
-              };
-              setProjects(prev => [...prev, newProject]);
-            }}
+            onAddProject={() => setShowProjectModal(true)}
           />
         )}
 
@@ -293,6 +415,8 @@ export function ProjectsDashboard() {
           <div className="text-center py-12">
             <p className="text-text-secondary">No projects found matching "{searchTerm}"</p>
           </div>
+        )}
+        </>
         )}
       </div>
 
@@ -303,6 +427,42 @@ export function ProjectsDashboard() {
         onApplyFilters={setActiveFilters}
         availableOwners={uniqueOwners}
       />
+
+      {/* Project Creation Modal */}
+      <ProjectModal
+        isOpen={showProjectModal}
+        onClose={() => setShowProjectModal(false)}
+        onProjectCreated={handleProjectCreated}
+      />
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Project</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete this project? This will permanently delete the project and all associated expenses. This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setProjectToDelete(null);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteProject}
+                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+              >
+                Delete Project
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

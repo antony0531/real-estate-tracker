@@ -1,10 +1,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { authAPI, setupAPIInterceptor, type User as APIUser } from '../services/api';
 
-interface User {
-  id: string;
-  email: string;
-  name: string;
+interface User extends APIUser {
   initials: string;
 }
 
@@ -24,15 +22,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Setup API interceptor for token refresh
+    setupAPIInterceptor();
+    
     // Check for stored session
     const storedUser = localStorage.getItem('user');
-    if (storedUser) {
+    const token = localStorage.getItem('token');
+    
+    if (storedUser && token) {
       try {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
       } catch (error) {
         console.error('Failed to parse stored user:', error);
         localStorage.removeItem('user');
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
       }
     }
     setIsLoading(false);
@@ -50,26 +55,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Invalid email format');
     }
 
-    // Password validation (minimum 8 characters)
-    if (password.length < 8) {
-      throw new Error('Password must be at least 8 characters');
-    }
-
-    // Mock authentication - replace with real API call
-    // In production, this would be a secure API call with proper encryption
-    if (email === 'demo@budgetflip.com' && password === 'Demo1234!') {
-      const mockUser: User = {
-        id: '1',
-        email,
-        name: 'Demo User',
-        initials: 'DU'
-      };
+    try {
+      const response = await authAPI.login(email, password);
+      const { user } = response;
       
-      setUser(mockUser);
-      localStorage.setItem('user', JSON.stringify(mockUser));
+      // Generate initials
+      const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+      const fullUser: User = { ...user, initials };
+      
+      setUser(fullUser);
+      localStorage.setItem('user', JSON.stringify(fullUser));
       navigate('/projects');
-    } else {
-      throw new Error('Invalid email or password');
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Invalid email or password');
     }
   };
 
@@ -85,35 +83,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Invalid email format');
     }
 
-    // Password strength validation
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-    if (!passwordRegex.test(password)) {
-      throw new Error('Password must contain at least 8 characters, one uppercase, one lowercase, one number and one special character');
-    }
-
     // Name validation
     if (name.trim().length < 2) {
       throw new Error('Name must be at least 2 characters');
     }
 
-    // Mock signup - replace with real API call
-    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-    const mockUser: User = {
-      id: Date.now().toString(),
-      email,
-      name,
-      initials
-    };
-    
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
-    navigate('/projects');
+    try {
+      const response = await authAPI.register(email, password, name);
+      const { user } = response;
+      
+      // Generate initials
+      const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+      const fullUser: User = { ...user, initials };
+      
+      setUser(fullUser);
+      localStorage.setItem('user', JSON.stringify(fullUser));
+      navigate('/projects');
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to create account');
+    }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
-    navigate('/login');
+  const logout = async () => {
+    try {
+      await authAPI.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      navigate('/login');
+    }
   };
 
   return (

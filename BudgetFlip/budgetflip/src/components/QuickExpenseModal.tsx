@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
-import { X, DollarSign, Calendar, Tag, FileText, Camera } from 'lucide-react';
+import { X, DollarSign, Calendar, Tag, FileText, Camera, Building } from 'lucide-react';
+import { expensesAPI } from '../services/api';
 
 interface QuickExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
   projectId?: string;
+  onExpenseAdded?: () => void;
 }
 
-export function QuickExpenseModal({ isOpen, onClose, projectId }: QuickExpenseModalProps) {
+export function QuickExpenseModal({ isOpen, onClose, projectId, onExpenseAdded }: QuickExpenseModalProps) {
   const [amount, setAmount] = useState('');
+  const [vendor, setVendor] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [receipt, setReceipt] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const categories = [
     'Materials',
@@ -23,17 +28,46 @@ export function QuickExpenseModal({ isOpen, onClose, projectId }: QuickExpenseMo
     'Other'
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Submit expense
-    console.log('Submitting expense:', { amount, description, category, date, receipt });
-    onClose();
-    // Reset form
-    setAmount('');
-    setDescription('');
-    setCategory('');
-    setDate(new Date().toISOString().split('T')[0]);
-    setReceipt(null);
+    
+    if (!projectId) {
+      setError('No project selected');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      
+      await expensesAPI.create({
+        project_id: projectId,
+        amount: parseFloat(amount),
+        vendor: vendor.trim(),
+        description: description.trim(),
+        date: date,
+        status: 'pending'
+      });
+      
+      // Call the callback if provided
+      if (onExpenseAdded) {
+        onExpenseAdded();
+      }
+      
+      // Reset form
+      setAmount('');
+      setVendor('');
+      setDescription('');
+      setCategory('');
+      setDate(new Date().toISOString().split('T')[0]);
+      setReceipt(null);
+      
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add expense');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -54,10 +88,17 @@ export function QuickExpenseModal({ isOpen, onClose, projectId }: QuickExpenseMo
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-4 space-y-4 overflow-y-auto max-h-[calc(90vh-120px)]">
+          {/* Error Message */}
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+              {error}
+            </div>
+          )}
+
           {/* Amount */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Amount
+              Amount <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -68,6 +109,24 @@ export function QuickExpenseModal({ isOpen, onClose, projectId }: QuickExpenseMo
                 onChange={(e) => setAmount(e.target.value)}
                 className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 placeholder="0.00"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Vendor */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Vendor <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                value={vendor}
+                onChange={(e) => setVendor(e.target.value)}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                placeholder="e.g., Home Depot"
                 required
               />
             </div>
@@ -86,7 +145,6 @@ export function QuickExpenseModal({ isOpen, onClose, projectId }: QuickExpenseMo
                 className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 rows={2}
                 placeholder="What did you spend on?"
-                required
               />
             </div>
           </div>
@@ -154,9 +212,10 @@ export function QuickExpenseModal({ isOpen, onClose, projectId }: QuickExpenseMo
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full bg-primary-500 text-white py-3 rounded-lg font-medium hover:bg-primary-600 transition-colors"
+            disabled={isSubmitting}
+            className="w-full bg-primary-500 text-white py-3 rounded-lg font-medium hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Add Expense
+            {isSubmitting ? 'Adding...' : 'Add Expense'}
           </button>
         </form>
       </div>

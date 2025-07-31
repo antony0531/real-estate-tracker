@@ -1,11 +1,14 @@
 import { ChevronDown, Home, Bell, Search, Menu, LayoutGrid, LogOut } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { projectsAPI, type Project } from '../services/api';
 
 export function Header() {
   const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const userDropdownRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
@@ -28,15 +31,28 @@ export function Header() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
-  
-  const projects = [
-    { id: '123', name: 'Jersey City Renovation', status: 'active' },
-    { id: '124', name: 'Brooklyn Townhouse', status: 'planning' },
-    { id: '125', name: 'Queens Duplex', status: 'completed' }
-  ];
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  useEffect(() => {
+    if (id && projects.length > 0) {
+      const project = projects.find(p => p.id === id);
+      setCurrentProject(project || null);
+    }
+  }, [id, projects]);
+
+  const fetchProjects = async () => {
+    try {
+      const data = await projectsAPI.getAll();
+      setProjects(data);
+    } catch (error) {
+      console.error('Failed to fetch projects:', error);
+    }
+  };
   
   const isProjectsPage = location.pathname === '/projects';
-  const currentProject = projects.find(p => p.id === id);
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -47,14 +63,14 @@ export function Header() {
             <Menu className="h-5 w-5 text-text-secondary mr-4 lg:hidden" />
             
             {/* Logo */}
-            <div className="flex items-center">
+            <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
               <div className="w-8 h-8 bg-primary-500 rounded flex items-center justify-center text-white font-bold">
                 B
               </div>
               <span className="ml-2 text-xl font-semibold text-text-primary hidden sm:block">
                 BudgetFlip
               </span>
-            </div>
+            </Link>
             
             {/* Navigation */}
             {isProjectsPage ? (
@@ -85,6 +101,19 @@ export function Header() {
               
               {isProjectDropdownOpen && (
                 <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-monday-hover border border-gray-200 py-2 z-50">
+                  {projects.length === 0 ? (
+                    <div className="px-4 py-3 text-center">
+                      <p className="text-sm text-gray-500 mb-2">No projects yet</p>
+                      <Link
+                        to="/projects"
+                        className="text-sm text-primary-600 hover:text-primary-700"
+                        onClick={() => setIsProjectDropdownOpen(false)}
+                      >
+                        Create your first project
+                      </Link>
+                    </div>
+                  ) : (
+                    <>
                   {projects.map(project => (
                     <button
                       key={project.id}
@@ -96,16 +125,30 @@ export function Header() {
                     >
                       <span className="text-sm text-text-primary">{project.name}</span>
                       <span className={`text-xs px-2 py-1 rounded-full ${
-                        project.status === 'active' 
-                          ? 'bg-success-500 text-white' 
+                        project.status === 'in_progress' 
+                          ? 'bg-blue-500 text-white' 
                           : project.status === 'planning'
-                          ? 'bg-warning-500 text-white'
+                          ? 'bg-yellow-500 text-white'
+                          : project.status === 'completed'
+                          ? 'bg-green-500 text-white'
                           : 'bg-gray-300 text-gray-700'
                       }`}>
-                        {project.status}
+                        {project.status?.replace('_', ' ')}
                       </span>
                     </button>
                   ))}
+                  <div className="border-t mt-2 pt-2">
+                    <Link
+                      to="/projects"
+                      className="w-full text-left px-4 py-2 hover:bg-background-tertiary transition-colors flex items-center gap-2 text-sm text-primary-600"
+                      onClick={() => setIsProjectDropdownOpen(false)}
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                      View All Projects
+                    </Link>
+                  </div>
+                  </>
+                  )}
                 </div>
               )}
             </div>

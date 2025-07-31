@@ -125,9 +125,6 @@ export default function EditExpenseModal({
     }
   }
 
-  const handleCancel = () => {
-    onClose()
-  }
 
   if (!isOpen || !expense || !currentProject) return null
 

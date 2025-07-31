@@ -1,8 +1,7 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useLocation, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  LayoutDashboard,
   Building2,
   DollarSign,
   Settings,
@@ -10,7 +9,6 @@ import {
   BarChart3,
   Home,
   ChevronLeft,
-  ChevronRight,
   FileText,
   Menu,
   X,

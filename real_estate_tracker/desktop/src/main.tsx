@@ -6,9 +6,13 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import * as serviceWorkerRegistration from './services/serviceWorkerRegistration'
 
-// Conditionally import App based on environment
+// Import both apps
+import App from './App'
+import AppPWA from './AppPWA'
+
+// Conditionally select App based on environment
 const isPWA = !window.__TAURI_IPC__;
-const App = isPWA ? require('./AppPWA').default : require('./App').default;
+const AppComponent = isPWA ? AppPWA : App;
 
 // Create a query client for React Query
 const queryClient = new QueryClient({
@@ -52,7 +56,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter basename={isPWA ? '/real-estate-tracker' : undefined}>
-        <App />
+        <AppComponent />
       </BrowserRouter>
     </QueryClientProvider>
   </React.StrictMode>

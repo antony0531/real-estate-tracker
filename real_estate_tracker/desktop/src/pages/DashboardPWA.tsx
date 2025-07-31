@@ -1,37 +1,37 @@
-import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { Home, FolderOpen, DollarSign, Settings } from 'lucide-react'
-import { pwaService } from '../services/pwaService'
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { Home, FolderOpen, DollarSign, Settings } from "lucide-react";
+import { pwaService } from "../services/pwaService";
 
 export default function DashboardPWA() {
-  const [projects, setProjects] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [projects, setProjects] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadProjects()
-  }, [])
+    loadProjects();
+  }, []);
 
   const loadProjects = async () => {
     try {
-      setLoading(true)
-      const result = await pwaService.listProjects()
+      setLoading(true);
+      const result = await pwaService.listProjects();
       if (result.success && result.data) {
-        setProjects(result.data)
+        setProjects(result.data);
       }
     } catch (error) {
-      console.error('Failed to load projects:', error)
+      console.error("Failed to load projects:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const totalBudget = projects.reduce((sum, p) => sum + (p.budget || 0), 0)
-  const totalSpent = projects.reduce((sum, p) => sum + (p.spent || 0), 0)
+  const totalBudget = projects.reduce((sum, p) => sum + (p.budget || 0), 0);
+  const totalSpent = projects.reduce((sum, p) => sum + (p.spent || 0), 0);
 
   return (
     <div className="p-6">
       <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
           <div className="flex items-center justify-between">
@@ -47,7 +47,9 @@ export default function DashboardPWA() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 dark:text-gray-400">Total Budget</p>
-              <p className="text-2xl font-bold">${totalBudget.toLocaleString()}</p>
+              <p className="text-2xl font-bold">
+                ${totalBudget.toLocaleString()}
+              </p>
             </div>
             <DollarSign className="w-8 h-8 text-green-500" />
           </div>
@@ -57,7 +59,9 @@ export default function DashboardPWA() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 dark:text-gray-400">Total Spent</p>
-              <p className="text-2xl font-bold">${totalSpent.toLocaleString()}</p>
+              <p className="text-2xl font-bold">
+                ${totalSpent.toLocaleString()}
+              </p>
             </div>
             <DollarSign className="w-8 h-8 text-red-500" />
           </div>
@@ -86,7 +90,8 @@ export default function DashboardPWA() {
                   <div>
                     <h3 className="font-semibold">{project.name}</h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Budget: ${project.budget?.toLocaleString()} | Spent: ${project.spent?.toLocaleString()}
+                      Budget: ${project.budget?.toLocaleString()} | Spent: $
+                      {project.spent?.toLocaleString()}
                     </p>
                   </div>
                   <div className="text-sm text-gray-500">
@@ -99,5 +104,5 @@ export default function DashboardPWA() {
         )}
       </div>
     </div>
-  )
+  );
 }

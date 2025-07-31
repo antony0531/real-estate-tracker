@@ -1,6 +1,6 @@
 // Unified API Service - automatically uses Tauri or PWA service based on environment
-import { Platform } from './platform';
-import { pwaService } from './pwaService';
+import { Platform } from "./platform";
+import { pwaService } from "./pwaService";
 
 // Types matching our backend
 export interface AppInfo {
@@ -54,9 +54,9 @@ let TauriServiceModule: any = null;
 async function getTauriService() {
   if (!TauriServiceModule && Platform.isTauri()) {
     try {
-      TauriServiceModule = await import('./tauri');
+      TauriServiceModule = await import("./tauri");
     } catch (e) {
-      console.error('Failed to load Tauri service:', e);
+      console.error("Failed to load Tauri service:", e);
     }
   }
   return TauriServiceModule?.TauriService;
@@ -66,11 +66,10 @@ async function getTauriService() {
  * Unified API Service that works in both Tauri and PWA environments
  */
 export class APIService {
-  
   // =============================================================================
   // APP & SYSTEM COMMANDS
   // =============================================================================
-  
+
   static async getAppInfo(): Promise<AppInfo> {
     try {
       if (Platform.isPWA()) {
@@ -78,12 +77,12 @@ export class APIService {
         if (!result.success) throw new Error(result.error);
         return result.data as any;
       }
-      
+
       const TauriService = await getTauriService();
-      if (!TauriService) throw new Error('Tauri service not available');
+      if (!TauriService) throw new Error("Tauri service not available");
       return await TauriService.getAppInfo();
     } catch (error) {
-      console.error('Failed to get app info:', error);
+      console.error("Failed to get app info:", error);
       throw new Error(`Failed to get app info: ${error}`);
     }
   }
@@ -93,14 +92,14 @@ export class APIService {
       if (Platform.isPWA()) {
         const result = await pwaService.initializeDatabase();
         if (!result.success) throw new Error(result.error);
-        return 'PWA database initialized';
+        return "PWA database initialized";
       }
-      
+
       const TauriService = await getTauriService();
-      if (!TauriService) throw new Error('Tauri service not available');
+      if (!TauriService) throw new Error("Tauri service not available");
       return await TauriService.initializeDatabase();
     } catch (error) {
-      console.error('Failed to initialize database:', error);
+      console.error("Failed to initialize database:", error);
       throw new Error(`Failed to initialize database: ${error}`);
     }
   }
@@ -116,12 +115,12 @@ export class APIService {
         if (!result.success) throw new Error(result.error);
         return JSON.stringify(result.data);
       }
-      
+
       const TauriService = await getTauriService();
-      if (!TauriService) throw new Error('Tauri service not available');
+      if (!TauriService) throw new Error("Tauri service not available");
       return await TauriService.getProjects();
     } catch (error) {
-      console.error('Failed to get projects:', error);
+      console.error("Failed to get projects:", error);
       throw new Error(`Failed to get projects: ${error}`);
     }
   }
@@ -133,17 +132,17 @@ export class APIService {
           data.name,
           data.budget,
           data.property_type,
-          data.property_class
+          data.property_class,
         );
         if (!result.success) throw new Error(result.error);
         return JSON.stringify(result.data);
       }
-      
+
       const TauriService = await getTauriService();
-      if (!TauriService) throw new Error('Tauri service not available');
+      if (!TauriService) throw new Error("Tauri service not available");
       return await TauriService.createProject(data);
     } catch (error) {
-      console.error('Failed to create project:', error);
+      console.error("Failed to create project:", error);
       throw new Error(`Failed to create project: ${error}`);
     }
   }
@@ -159,20 +158,22 @@ export class APIService {
         if (!result.success) throw new Error(result.error);
         return JSON.stringify(result.data);
       }
-      
+
       const TauriService = await getTauriService();
-      if (!TauriService) throw new Error('Tauri service not available');
+      if (!TauriService) throw new Error("Tauri service not available");
       return await TauriService.getExpenses(projectId);
     } catch (error) {
       console.error(`Failed to get expenses for project ${projectId}:`, error);
-      throw new Error(`Failed to get expenses for project ${projectId}: ${error}`);
+      throw new Error(
+        `Failed to get expenses for project ${projectId}: ${error}`,
+      );
     }
   }
 
   static async addExpense(expenseData: {
     projectId: number;
     roomName: string;
-    category: 'material' | 'labor';
+    category: "material" | "labor";
     cost: number;
     hours?: number;
     condition?: number;
@@ -181,46 +182,55 @@ export class APIService {
     try {
       if (Platform.isPWA()) {
         // For PWA, we need to create/find the room first
-        const roomsResult = await pwaService.listRooms(String(expenseData.projectId));
-        let roomId = '';
+        const roomsResult = await pwaService.listRooms(
+          String(expenseData.projectId),
+        );
+        let roomId = "";
         if (roomsResult.success && roomsResult.data) {
-          const existingRoom = roomsResult.data.find(r => r.name === expenseData.roomName);
+          const existingRoom = roomsResult.data.find(
+            (r) => r.name === expenseData.roomName,
+          );
           if (existingRoom) {
             roomId = existingRoom.id;
           } else {
             // Create the room if it doesn't exist
             const newRoomResult = await pwaService.createRoom(
               String(expenseData.projectId),
-              expenseData.roomName
+              expenseData.roomName,
             );
             if (newRoomResult.success && newRoomResult.data) {
               roomId = newRoomResult.data.id;
             }
           }
         }
-        
+
         const result = await pwaService.createExpense(
           String(expenseData.projectId),
           roomId,
           expenseData.category,
           expenseData.cost,
-          expenseData.notes || ''
+          expenseData.notes || "",
         );
         if (!result.success) throw new Error(result.error);
         return JSON.stringify(result.data);
       }
-      
+
       const TauriService = await getTauriService();
-      if (!TauriService) throw new Error('Tauri service not available');
+      if (!TauriService) throw new Error("Tauri service not available");
       return await TauriService.addExpense(expenseData);
     } catch (error) {
-      console.error(`Failed to add expense to project ${expenseData.projectId}:`, error);
-      throw new Error(`Failed to add expense to project ${expenseData.projectId}: ${error}`);
+      console.error(
+        `Failed to add expense to project ${expenseData.projectId}:`,
+        error,
+      );
+      throw new Error(
+        `Failed to add expense to project ${expenseData.projectId}: ${error}`,
+      );
     }
   }
 
   // Add more methods as needed...
-  
+
   /**
    * Parse CLI output into structured data
    */
@@ -235,14 +245,17 @@ export class APIService {
       return { success: true, data: parsed };
     } catch {
       // If not JSON, treat as plain text success if no error indicators
-      const hasError = output.toLowerCase().includes('error') || 
-                      output.toLowerCase().includes('failed') ||
-                      output.toLowerCase().includes('exception');
-      
+      const hasError =
+        output.toLowerCase().includes("error") ||
+        output.toLowerCase().includes("failed") ||
+        output.toLowerCase().includes("exception");
+
       return {
         success: !hasError,
         data: output.trim(),
-        message: hasError ? 'Command executed with errors' : 'Command executed successfully'
+        message: hasError
+          ? "Command executed with errors"
+          : "Command executed successfully",
       };
     }
   }
@@ -255,15 +268,15 @@ export class APIService {
       return error.message;
     }
 
-    if (typeof error === 'string') {
+    if (typeof error === "string") {
       return error;
     }
-    
-    if (error && typeof error === 'object' && 'message' in error) {
+
+    if (error && typeof error === "object" && "message" in error) {
       const message = error.message;
-      return typeof message === 'string' ? message : String(message);
+      return typeof message === "string" ? message : String(message);
     }
-    
-    return 'An unknown error occurred';
+
+    return "An unknown error occurred";
   }
 }

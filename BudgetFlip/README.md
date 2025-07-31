@@ -50,7 +50,14 @@ A modern, offline-first budget tracking application designed specifically for ho
    - Backend API: http://localhost:3000
    - Database UI: http://localhost:8080
 
-4. **Default credentials for Adminer**
+4. **Login to BudgetFlip**
+   - Navigate to http://localhost:5173
+   - Click "Sign Up" to create a new account
+   - Or use these demo credentials (if seeded):
+     - Email: demo@budgetflip.com
+     - Password: demo123
+   
+5. **Default credentials for Adminer (Database UI)**
    - System: PostgreSQL
    - Server: postgres
    - Username: budgetflip_user

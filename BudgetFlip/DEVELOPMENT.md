@@ -39,6 +39,33 @@
    docker-compose up -d
    ```
 
+## 🚀 First Time Setup
+
+1. **Start Docker services**
+   ```bash
+   docker-compose up -d
+   ```
+
+2. **Wait for services to initialize** (about 30 seconds)
+   - PostgreSQL needs to create the database schema
+   - Backend needs to compile TypeScript
+   - Frontend needs to install dependencies
+
+3. **Open the application**
+   - Go to http://localhost:5173 in your browser
+   - The login page should appear
+
+4. **Create your first account**
+   - Click "Sign Up"
+   - Enter your email, password, and name
+   - Click "Create Account"
+   - You'll be automatically logged in
+
+5. **Start using BudgetFlip**
+   - Click "New Project" to create your first house flip project
+   - Add expenses as you go
+   - Switch between different views (Grid, Kanban, Table, Calendar)
+
 ## 🏃‍♂️ Running the Application
 
 ### With Docker (Recommended)
@@ -232,6 +259,12 @@ npm test
 - Verify DATABASE_URL in .env
 - Check postgres container logs
 
+**"Cannot login or create account"**
+- Ensure backend is running: `docker-compose logs backend`
+- Check if database is initialized: `docker-compose logs postgres`
+- Verify API is accessible: `curl http://localhost:3000/health`
+- Check browser console for errors (F12)
+
 **"CORS error"**
 - Update CORS_ORIGIN in backend .env
 - Ensure frontend uses correct API URL
@@ -239,6 +272,11 @@ npm test
 **"Token expired"**
 - Implement refresh token rotation
 - Check JWT_EXPIRES_IN setting
+
+**"Page loads but is blank"**
+- Clear browser cache and reload
+- Check frontend logs: `docker-compose logs frontend`
+- Ensure you're using http://localhost:5173 (not https)
 
 ### Useful Commands
 ```bash

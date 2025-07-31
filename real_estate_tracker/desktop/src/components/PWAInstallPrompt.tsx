@@ -1,81 +1,94 @@
-import React, { useState, useEffect } from 'react'
-import { X, Download, Smartphone } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect } from "react";
+import { X, Download, Smartphone } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
 
 export default function PWAInstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
-  const [showPrompt, setShowPrompt] = useState(false)
-  const [isIOS, setIsIOS] = useState(false)
+  const [deferredPrompt, setDeferredPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
     // Check if iOS
-    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
-    setIsIOS(isIOSDevice)
+    const isIOSDevice =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) && !("MSStream" in window);
+    setIsIOS(isIOSDevice);
 
     // Check if already installed
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
-                        (window.navigator as any).standalone === true
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      ("standalone" in window.navigator &&
+        (window.navigator as unknown as { standalone: boolean }).standalone ===
+          true);
 
     if (isStandalone) {
-      return // Already installed
+      return; // Already installed
     }
 
     // Listen for install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault()
-      setDeferredPrompt(e)
-      
+      e.preventDefault();
+      setDeferredPrompt(e);
+
       // Show prompt after a delay
       setTimeout(() => {
-        setShowPrompt(true)
-      }, 30000) // Show after 30 seconds
-    }
+        setShowPrompt(true);
+      }, 30000); // Show after 30 seconds
+    };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
     // For iOS, show custom instructions
     if (isIOSDevice && !isStandalone) {
       setTimeout(() => {
-        setShowPrompt(true)
-      }, 30000)
+        setShowPrompt(true);
+      }, 30000);
     }
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-    }
-  }, [])
+      window.removeEventListener(
+        "beforeinstallprompt",
+        handleBeforeInstallPrompt,
+      );
+    };
+  }, []);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) return
+    if (!deferredPrompt) return;
 
-    deferredPrompt.prompt()
-    const { outcome } = await deferredPrompt.userChoice
-    
-    if (outcome === 'accepted') {
-      console.log('PWA installed')
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+
+    if (outcome === "accepted") {
+      console.log("PWA installed");
     }
-    
-    setDeferredPrompt(null)
-    setShowPrompt(false)
-  }
+
+    setDeferredPrompt(null);
+    setShowPrompt(false);
+  };
 
   const handleDismiss = () => {
-    setShowPrompt(false)
+    setShowPrompt(false);
     // Don't show again for 7 days
-    localStorage.setItem('pwa-prompt-dismissed', Date.now().toString())
-  }
+    localStorage.setItem("pwa-prompt-dismissed", Date.now().toString());
+  };
 
   // Check if dismissed recently
   useEffect(() => {
-    const dismissed = localStorage.getItem('pwa-prompt-dismissed')
+    const dismissed = localStorage.getItem("pwa-prompt-dismissed");
     if (dismissed) {
-      const dismissedTime = parseInt(dismissed)
-      const daysSince = (Date.now() - dismissedTime) / (1000 * 60 * 60 * 24)
+      const dismissedTime = parseInt(dismissed);
+      const daysSince = (Date.now() - dismissedTime) / (1000 * 60 * 60 * 24);
       if (daysSince < 7) {
-        setShowPrompt(false)
+        setShowPrompt(false);
       }
     }
-  }, [])
+  }, []);
 
   return (
     <AnimatePresence>
@@ -116,7 +129,10 @@ export default function PWAInstallPrompt() {
                     To install on iOS:
                   </p>
                   <ol className="text-sm text-blue-700 dark:text-blue-300 mt-2 space-y-1">
-                    <li>1. Tap the Share button <span className="inline-block">⎙</span></li>
+                    <li>
+                      1. Tap the Share button{" "}
+                      <span className="inline-block">⎙</span>
+                    </li>
                     <li>2. Scroll down and tap "Add to Home Screen"</li>
                     <li>3. Tap "Add" in the top right</li>
                   </ol>
@@ -149,5 +165,5 @@ export default function PWAInstallPrompt() {
         </motion.div>
       )}
     </AnimatePresence>
-  )
+  );
 }

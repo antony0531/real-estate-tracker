@@ -1,8 +1,13 @@
-import React from 'react'
-import { motion } from 'framer-motion'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
-import { EmptyState } from '../components/ui/EmptyState'
-import { FileText, TrendingUp, PieChart, BarChart3 } from 'lucide-react'
+import React from "react";
+import { motion } from "framer-motion";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/Card";
+import { EmptyState } from "../components/ui/EmptyState";
+import { FileText, TrendingUp, PieChart, BarChart3 } from "lucide-react";
 
 export default function Reports() {
   return (
@@ -37,7 +42,8 @@ export default function Reports() {
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600 dark:text-gray-400 text-sm">
-                  Calculate return on investment for each project with detailed breakdowns
+                  Calculate return on investment for each project with detailed
+                  breakdowns
                 </p>
               </CardContent>
             </Card>
@@ -103,5 +109,5 @@ export default function Reports() {
         </motion.div>
       </div>
     </div>
-  )
+  );
 }

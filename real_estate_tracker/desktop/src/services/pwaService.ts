@@ -1,41 +1,41 @@
 // PWA Service - provides mock implementations for PWA mode
-import { indexedDB } from './indexedDB';
-import type { Project, Expense, Room, AppInfo, APIResponse } from '@/types';
+import { indexedDB } from "./indexedDB";
+import type { Project, Expense, Room, AppInfo, ApiResponse } from "@/types";
 
 class PWAService {
   private initialized = false;
 
-  async initializeDatabase(): Promise<APIResponse<void>> {
+  async initializeDatabase(): Promise<ApiResponse<void>> {
     try {
       if (!this.initialized) {
         await indexedDB.init();
         this.initialized = true;
-        
+
         // Initialize with demo data if empty
         const projects = await indexedDB.getAllProjects();
         if (projects.length === 0) {
           await this.createDemoData();
         }
       }
-      
+
       return { success: true, data: undefined };
     } catch (error) {
-      return { 
-        success: false, 
-        error: `Failed to initialize IndexedDB: ${error}` 
+      return {
+        success: false,
+        error: `Failed to initialize IndexedDB: ${error}`,
       };
     }
   }
 
-  async getAppInfo(): Promise<APIResponse<AppInfo>> {
+  async getAppInfo(): Promise<ApiResponse<AppInfo>> {
     return {
       success: true,
       data: {
-        version: '0.2.0-pwa',
-        platform: 'web',
-        features: ['offline', 'camera', 'pwa'],
-        databasePath: 'IndexedDB'
-      }
+        version: "0.2.0-pwa",
+        platform: "web",
+        features: ["offline", "camera", "pwa"],
+        databasePath: "IndexedDB",
+      },
     };
   }
 
@@ -44,22 +44,22 @@ class PWAService {
     name: string,
     budget: number,
     propertyType: string,
-    strategyType: string
-  ): Promise<APIResponse<Project>> {
+    strategyType: string,
+  ): Promise<ApiResponse<Project>> {
     try {
       const project: Project = {
-        id: `proj_${Date.now()}`,
+        id: Date.now(),
         name,
-        address: '',
+        address: "",
         budget,
         spent: 0,
         property_type: propertyType,
         strategy_type: strategyType,
-        status: 'planning',
+        status: "planning",
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
-      
+
       await indexedDB.saveProject(project);
       return { success: true, data: project };
     } catch (error) {
@@ -67,7 +67,7 @@ class PWAService {
     }
   }
 
-  async listProjects(): Promise<APIResponse<Project[]>> {
+  async listProjects(): Promise<ApiResponse<Project[]>> {
     try {
       const projects = await indexedDB.getAllProjects();
       return { success: true, data: projects };
@@ -76,11 +76,11 @@ class PWAService {
     }
   }
 
-  async getProject(id: string): Promise<APIResponse<Project>> {
+  async getProject(id: string): Promise<ApiResponse<Project>> {
     try {
       const project = await indexedDB.getProject(id);
       if (!project) {
-        return { success: false, error: 'Project not found' };
+        return { success: false, error: "Project not found" };
       }
       return { success: true, data: project };
     } catch (error) {
@@ -90,20 +90,20 @@ class PWAService {
 
   async updateProject(
     id: string,
-    updates: Partial<Project>
-  ): Promise<APIResponse<Project>> {
+    updates: Partial<Project>,
+  ): Promise<ApiResponse<Project>> {
     try {
       const project = await indexedDB.getProject(id);
       if (!project) {
-        return { success: false, error: 'Project not found' };
+        return { success: false, error: "Project not found" };
       }
-      
+
       const updatedProject = {
         ...project,
         ...updates,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
-      
+
       await indexedDB.saveProject(updatedProject);
       return { success: true, data: updatedProject };
     } catch (error) {
@@ -111,12 +111,12 @@ class PWAService {
     }
   }
 
-  async deleteProject(id: string): Promise<APIResponse<void>> {
+  async deleteProject(id: string): Promise<ApiResponse<void>> {
     try {
       // For now, just mark as deleted in the project
       const project = await indexedDB.getProject(id);
       if (project) {
-        project.status = 'deleted';
+        project.status = "deleted";
         await indexedDB.saveProject(project);
       }
       return { success: true, data: undefined };
@@ -127,40 +127,40 @@ class PWAService {
 
   // Expenses
   async createExpense(
-    projectId: string,
-    roomId: string,
-    category: string,
+    projectId: number,
+    roomId: number,
+    category: ExpenseCategory,
     amount: number,
-    notes: string
-  ): Promise<APIResponse<Expense>> {
+    notes: string,
+  ): Promise<ApiResponse<Expense>> {
     try {
       const expense: Expense = {
-        id: `exp_${Date.now()}`,
-        project_id: projectId,
-        room_id: roomId,
+        id: Date.now(),
+        projectId,
+        roomId,
         category,
-        amount,
+        cost: amount,
+        description: notes || "",
         notes,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
-      
+
       await indexedDB.saveExpense(expense);
-      
+
       // Update project spent amount
-      const project = await indexedDB.getProject(projectId);
+      const project = await indexedDB.getProject(projectId.toString());
       if (project) {
         project.spent = (project.spent || 0) + amount;
         await indexedDB.saveProject(project);
       }
-      
+
       return { success: true, data: expense };
     } catch (error) {
       return { success: false, error: String(error) };
     }
   }
 
-  async listExpenses(projectId?: string): Promise<APIResponse<Expense[]>> {
+  async listExpenses(projectId?: string): Promise<ApiResponse<Expense[]>> {
     try {
       if (projectId) {
         const expenses = await indexedDB.getExpensesByProject(projectId);
@@ -177,20 +177,20 @@ class PWAService {
   async createRoom(
     projectId: string,
     name: string,
-    floor?: number
-  ): Promise<APIResponse<Room>> {
+    floor?: number,
+  ): Promise<ApiResponse<Room>> {
     try {
       const room: Room = {
-        id: `room_${Date.now()}`,
+        id: Date.now(),
         project_id: projectId,
         name,
         floor_number: floor || 1,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         condition: 3,
-        notes: ''
+        notes: "",
       };
-      
+
       await indexedDB.saveRoom(room);
       return { success: true, data: room };
     } catch (error) {
@@ -198,7 +198,7 @@ class PWAService {
     }
   }
 
-  async listRooms(projectId?: string): Promise<APIResponse<Room[]>> {
+  async listRooms(projectId?: string): Promise<ApiResponse<Room[]>> {
     try {
       if (projectId) {
         const rooms = await indexedDB.getRoomsByProject(projectId);
@@ -211,7 +211,7 @@ class PWAService {
   }
 
   // Export functionality
-  async exportData(): Promise<APIResponse<any>> {
+  async exportData(): Promise<ApiResponse<any>> {
     try {
       const data = await indexedDB.exportData();
       return { success: true, data };
@@ -220,7 +220,7 @@ class PWAService {
     }
   }
 
-  async importData(data: any): Promise<APIResponse<void>> {
+  async importData(data: any): Promise<ApiResponse<void>> {
     try {
       await indexedDB.importData(data);
       return { success: true, data: undefined };
@@ -233,60 +233,78 @@ class PWAService {
   private async createDemoData() {
     // Create a demo project
     const demoProject: Project = {
-      id: 'demo_project_1',
-      name: 'Demo House Flip',
-      address: '123 Demo Street',
+      id: 1,
+      name: "Demo House Flip",
+      address: "123 Demo Street",
       budget: 50000,
       spent: 5250,
-      property_type: 'single_family',
-      strategy_type: 'flip',
-      status: 'active',
+      property_type: "single_family",
+      strategy_type: "flip",
+      status: "active",
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
-    
+
     await indexedDB.saveProject(demoProject);
-    
+
     // Create demo rooms
     const rooms = [
-      { name: 'Kitchen', floor: 1 },
-      { name: 'Living Room', floor: 1 },
-      { name: 'Master Bedroom', floor: 2 },
-      { name: 'Bathroom', floor: 1 }
+      { name: "Kitchen", floor: 1 },
+      { name: "Living Room", floor: 1 },
+      { name: "Master Bedroom", floor: 2 },
+      { name: "Bathroom", floor: 1 },
     ];
-    
+
     for (const roomData of rooms) {
       const room: Room = {
-        id: `demo_room_${roomData.name.toLowerCase().replace(' ', '_')}`,
-        project_id: demoProject.id,
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        projectId: demoProject.id,
         name: roomData.name,
-        floor_number: roomData.floor,
+        floor: roomData.floor,
         condition: 3,
-        notes: '',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        notes: "",
       };
       await indexedDB.saveRoom(room);
     }
-    
+
     // Create demo expenses
     const expenses = [
-      { room: 'demo_room_kitchen', category: 'material', amount: 2500, notes: 'New cabinets' },
-      { room: 'demo_room_kitchen', category: 'labor', amount: 1500, notes: 'Cabinet installation' },
-      { room: 'demo_room_living_room', category: 'material', amount: 750, notes: 'Paint and supplies' },
-      { room: 'demo_room_bathroom', category: 'material', amount: 500, notes: 'New fixtures' }
+      {
+        room: "demo_room_kitchen",
+        category: "material",
+        amount: 2500,
+        notes: "New cabinets",
+      },
+      {
+        room: "demo_room_kitchen",
+        category: "labor",
+        amount: 1500,
+        notes: "Cabinet installation",
+      },
+      {
+        room: "demo_room_living_room",
+        category: "material",
+        amount: 750,
+        notes: "Paint and supplies",
+      },
+      {
+        room: "demo_room_bathroom",
+        category: "material",
+        amount: 500,
+        notes: "New fixtures",
+      },
     ];
-    
+
     for (const expData of expenses) {
       const expense: Expense = {
-        id: `demo_expense_${Date.now()}_${Math.random()}`,
-        project_id: demoProject.id,
-        room_id: expData.room,
-        category: expData.category,
-        amount: expData.amount,
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        projectId: demoProject.id,
+        roomId: 1, // We'll use a placeholder room ID
+        category: expData.category as ExpenseCategory,
+        cost: expData.amount,
+        description: expData.notes,
         notes: expData.notes,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
       await indexedDB.saveExpense(expense);
     }

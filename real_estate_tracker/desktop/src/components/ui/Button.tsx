@@ -83,7 +83,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ) : (
           leftIcon
         )}
-        {children}
+        {children as React.ReactNode}
         {!isLoading && rightIcon}
       </motion.button>
     )

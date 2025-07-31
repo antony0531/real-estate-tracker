@@ -1,98 +1,98 @@
-import React, { useState, useRef } from 'react'
-import { Camera, X, CheckCircle, RotateCw } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import React, { useState, useRef } from "react";
+import { Camera, X, CheckCircle, RotateCw } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface CameraCaptureProps {
-  onCapture: (imageData: string) => void
-  onClose: () => void
+  onCapture: (imageData: string) => void;
+  onClose: () => void;
 }
 
-export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
-  const [isCapturing, setIsCapturing] = useState(false)
-  const [capturedImage, setCapturedImage] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
+export default function CameraCapture({
+  onCapture,
+  onClose,
+}: CameraCaptureProps) {
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: 'environment', // Use rear camera on mobile
+          facingMode: "environment", // Use rear camera on mobile
           width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      })
-      
+          height: { ideal: 1080 },
+        },
+      });
+
       if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        streamRef.current = stream
-        setIsCapturing(true)
-        setError(null)
+        videoRef.current.srcObject = stream;
+        streamRef.current = stream;
+        setIsCapturing(true);
+        setError(null);
       }
     } catch (err) {
-      console.error('Camera access error:', err)
-      setError('Unable to access camera. Please check permissions.')
+      console.error("Camera access error:", err);
+      setError("Unable to access camera. Please check permissions.");
     }
-  }
+  };
 
   const stopCamera = () => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop())
-      streamRef.current = null
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     }
-    setIsCapturing(false)
-  }
+    setIsCapturing(false);
+  };
 
   const capturePhoto = () => {
-    if (!videoRef.current) return
+    if (!videoRef.current) return;
 
-    const canvas = document.createElement('canvas')
-    canvas.width = videoRef.current.videoWidth
-    canvas.height = videoRef.current.videoHeight
-    
-    const ctx = canvas.getContext('2d')
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+
+    const ctx = canvas.getContext("2d");
     if (ctx) {
-      ctx.drawImage(videoRef.current, 0, 0)
-      const imageData = canvas.toDataURL('image/jpeg', 0.8)
-      setCapturedImage(imageData)
-      stopCamera()
+      ctx.drawImage(videoRef.current, 0, 0);
+      const imageData = canvas.toDataURL("image/jpeg", 0.8);
+      setCapturedImage(imageData);
+      stopCamera();
     }
-  }
+  };
 
   const retakePhoto = () => {
-    setCapturedImage(null)
-    startCamera()
-  }
+    setCapturedImage(null);
+    startCamera();
+  };
 
   const confirmPhoto = () => {
     if (capturedImage) {
-      onCapture(capturedImage)
-      cleanup()
+      onCapture(capturedImage);
+      cleanup();
     }
-  }
+  };
 
   const cleanup = () => {
-    stopCamera()
-    setCapturedImage(null)
-    onClose()
-  }
+    stopCamera();
+    setCapturedImage(null);
+    onClose();
+  };
 
   React.useEffect(() => {
     return () => {
-      stopCamera()
-    }
-  }, [])
+      stopCamera();
+    };
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between p-4 bg-black/50">
         <h2 className="text-white font-semibold">Capture Photo</h2>
-        <button
-          onClick={cleanup}
-          className="text-white hover:text-gray-300"
-        >
+        <button onClick={cleanup} className="text-white hover:text-gray-300">
           <X className="w-6 h-6" />
         </button>
       </div>
@@ -178,5 +178,5 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
         </AnimatePresence>
       </div>
     </div>
-  )
+  );
 }

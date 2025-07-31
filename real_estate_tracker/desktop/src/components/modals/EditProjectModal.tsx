@@ -110,9 +110,6 @@ export default function EditProjectModal({
     }
   }
 
-  const handleCancel = () => {
-    onClose()
-  }
 
   if (!isOpen || !project) return null
 

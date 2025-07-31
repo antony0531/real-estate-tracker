@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { Toaster } from 'sonner'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 
 import Layout from './components/layout/Layout'
 import ModernDashboard from './pages/ModernDashboard'
@@ -17,7 +17,6 @@ import NetworkStatus from './components/NetworkStatus'
 
 import { DataService } from './services/dataService'
 import { DebugProvider } from './contexts/DebugContext'
-import type { AppInfo } from './types'
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true)

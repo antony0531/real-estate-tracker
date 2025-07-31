@@ -1,10 +1,12 @@
 // LoadingScreen.tsx - Professional loading screen for app initialization
 
 interface LoadingScreenProps {
-  message?: string
+  message?: string;
 }
 
-export default function LoadingScreen({ message = 'Loading Real Estate Tracker...' }: LoadingScreenProps) {
+export default function LoadingScreen({
+  message = "Loading Real Estate Tracker...",
+}: LoadingScreenProps) {
   return (
     <div className="full-screen center flex-col bg-background">
       {/* App Logo/Icon Area */}
@@ -35,15 +37,19 @@ export default function LoadingScreen({ message = 'Loading Real Estate Tracker..
       <div className="mb-6">
         <div className="flex space-x-2">
           <div className="w-3 h-3 bg-brand-500 rounded-full animate-bounce"></div>
-          <div className="w-3 h-3 bg-brand-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-          <div className="w-3 h-3 bg-brand-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+          <div
+            className="w-3 h-3 bg-brand-500 rounded-full animate-bounce"
+            style={{ animationDelay: "0.1s" }}
+          ></div>
+          <div
+            className="w-3 h-3 bg-brand-500 rounded-full animate-bounce"
+            style={{ animationDelay: "0.2s" }}
+          ></div>
         </div>
       </div>
 
       {/* Loading Message */}
-      <p className="text-muted-foreground text-center max-w-sm">
-        {message}
-      </p>
+      <p className="text-muted-foreground text-center max-w-sm">{message}</p>
 
       {/* Progress Bar (Indeterminate) */}
       <div className="w-64 h-1 bg-gray-200 rounded-full overflow-hidden mt-4">
@@ -56,5 +62,5 @@ export default function LoadingScreen({ message = 'Loading Real Estate Tracker..
         <p>Initializing database and services...</p>
       </div>
     </div>
-  )
-} 
+  );
+}
